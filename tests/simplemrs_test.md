@@ -137,7 +137,7 @@ non-breaking spaces:
 >>> len(m.eps())
 1
 >>> m.eps()[0][1]  # doctest: +ELLIPSIS
-<Pred object "_rain_v_1_rel" ...>
+<Predicate object "_rain_v_1_rel" ...>
 >>> EP(*m.eps()[0]).pred.string
 '"_rain_v_1_rel"'
 >>> EP(*m.eps()[0]).args['ARG0']
@@ -257,21 +257,21 @@ True
 3
 >>> ep = EP(*m.eps()[0])
 >>> ep.pred  # doctest: +ELLIPSIS
-<Pred object proper_q_rel ...>
+<Predicate object proper_q_rel ...>
 >>> ep.intrinsic_variable
 'x3'
 >>> sorted(m.properties('x3').items())
 [('IND', '+'), ('NUM', 'sg'), ('PERS', '3')]
 >>> ep = EP(*m.eps()[1])
 >>> ep.pred  # doctest: +ELLIPSIS
-<Pred object named_rel ...>
+<Predicate object named_rel ...>
 >>> ep.intrinsic_variable
 'x3'
 >>> ep.args['CARG']
 'Abrams'
 >>> ep = EP(*m.eps()[2])
 >>> ep.pred  # doctest: +ELLIPSIS
-<Pred object "_sleep_v_1_rel" ...>
+<Predicate object "_sleep_v_1_rel" ...>
 >>> ep.intrinsic_variable
 'e2'
 >>> sorted(m.properties('e2').items())

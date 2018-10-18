@@ -43,7 +43,7 @@ convenient:
 >>> len(m1.eps())
 1
 >>> nodes(m1)[0].pred  # doctest: +ELLIPSIS
-<Pred object _rain_v_1_rel ...>
+<Predicate object _rain_v_1_rel ...>
 >>> sorted(nodes(m1)[0].sortinfo.items())
 [('cvarsort', 'e'), ('mood', 'indicative'), ('perf', '-'), ('prog', '-'), ('sf', 'prop'), ('tense', 'pres')]
 >>> len(links(m1))
@@ -69,13 +69,13 @@ convenient:
 >>> len(nodes(m2))
 3
 >>> nodes(m2)[0].pred  # doctest: +ELLIPSIS
-<Pred object proper_q_rel ...>
+<Predicate object proper_q_rel ...>
 >>> nodes(m2)[1].pred  # doctest: +ELLIPSIS
-<Pred object named_rel ...>
+<Predicate object named_rel ...>
 >>> sorted(nodes(m2)[1].sortinfo.items())
 [('cvarsort', 'x'), ('ind', '+'), ('num', 'sg'), ('pers', '3')]
 >>> nodes(m2)[2].pred  # doctest: +ELLIPSIS
-<Pred object _sleep_v_1_rel ...>
+<Predicate object _sleep_v_1_rel ...>
 >>> sorted(nodes(m2)[2].sortinfo.items())
 [('cvarsort', 'e'), ('mood', 'indicative'), ('perf', '-'), ('prog', '-'), ('sf', 'prop'), ('tense', 'pres')]
 >>> len(links(m2))
@@ -98,11 +98,11 @@ See https://github.com/delph-in/pydelphin/issues/129
 ... <node nodeid="10001"><realpred lemma="te" pos="" sense="adjunct" /><sortinfo /></node>
 ... </dmrs></dmrs-list>'''))
 >>> nodes(m3)[0].pred  # doctest: +ELLIPSIS
-<Pred object _te_adjunct_rel ...>
+<Predicate object _te_adjunct_rel ...>
 >>> nodes(m3)[0].pred.pos is None
 True
 >>> nodes(m3)[1].pred  # doctest: +ELLIPSIS
-<Pred object _te_adjunct_rel ...>
+<Predicate object _te_adjunct_rel ...>
 >>> nodes(m3)[1].pred.pos is None
 True
 
