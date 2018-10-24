@@ -196,13 +196,17 @@ class DMRS(_SemanticComponent):
     def to_xmrs(self):
         scopes = _scopes(self)
         edges = _xmrs_edges(self, scopes)
-        return XMRS(
+        return _XMRS(
             top=top,
             index=index,
             xarg=xarg,
             nodes=self.nodes,
             scopes=scopes,
-            edges=edges)
+            edges=edges,
+            icons=None,
+            lnk=self.lnk,
+            surface=self.surface,
+            identifier=self.identifier)
 
     @classmethod
     def from_xmrs(cls, x):
@@ -225,6 +229,8 @@ class DMRS(_SemanticComponent):
             elif mode == _Edge.QEQARG:
                 tgt = reps[tgtscope][0]
                 post = H_POST
+            # elif mode == _Edge.UNEXPR:
+            #     ...
             else:
                 raise ValueError('invalid XMRS edge: ({}, {}, {}, {})'
                                  .format(src, tgt, role, mode))
@@ -252,12 +258,12 @@ def _xmrs_edges(d, scopes):
         if link.role == BARE_EQ_ROLE:
             continue
         if link.post == H_POST:
-            mode = _XMRS.QEQARG
+            mode = _Edge.QEQARG
             tgt = scopes[link.end]
         elif link.post == HEQ_POST:
-            mode = _XMRS.LBLARG
+            mode = _Edge.LBLARG
             tgt = scopes[link.end]
         else:
-            mode = _XMRS.VARARG
+            mode = _Edge.VARARG
             tgt = link.end
         edges.append((linkstart, link.role, mode, tgt))

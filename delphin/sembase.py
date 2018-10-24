@@ -412,11 +412,17 @@ class _Node(_LnkMixin):
         self.nodeid = nodeid
         self.predicate = predicate
         self.type = type
+        if properties is None:
+            properties = {}
         self.properties = properties
         self.carg = carg
         self.lnk = lnk
         self.surface = surface
         self.base = base
+
+    @classmethod
+    def unexpressed(cls, nodeid, type, properties=None):
+        return cls(nodeid, None, type, properties)
 
     def __repr__(self):
         return '<{} object ({} [{}{}]{}) at {}>'.format(
@@ -437,6 +443,7 @@ class _Edge(object):
     VARARG = 0  # regular variable argument
     LBLARG = 1  # argument is a scope identifier
     QEQARG = 2  # argument is qeq to a scope identifier
+    UNEXPR = 3  # argument is unexpressed
 
     def __init__(self, start, end, role, mode):
         self.start = start
@@ -446,6 +453,16 @@ class _Edge(object):
 
     def __iter__(self):
         return iter([self.start, self.end, self.role, self.mode])
+
+
+class _IndividualConstraint(object):
+
+    __slots__ = ('left', 'relation', 'right')
+
+    def __init__(self, left, relation, right):
+        self.left = left
+        self.relation = relation
+        self.right = right
 
 
 class _SemanticComponent(_LnkMixin):
@@ -470,17 +487,21 @@ class _XMRS(_SemanticComponent):
         nodes (list): list of :class:`_Node` objects
         scopes (dict): map of scopeid (e.g., a label) to a set of nodeids
         edges (list): list of (nodeid, role, mode, target) tuples
+        icons (list): list of (source, relation, target) tuples
         lnk: surface alignment of the whole structure
         surface: surface form of the whole structure
         identifier: corpus-level identifier
     """
     def __init__(self, top, index, xarg,
-                 nodes, scopes, edges,
+                 nodes, scopes, edges, icons,
                  lnk, surface, identifier):
         super(_XMRS, self).__init__(top, index, xarg, lnk, surface, identifier)
         self.nodes = nodes
         self.scopes = scopes
         self.edges = edges
+        self.icons = icons
+
+        self.nodemap = {node.nodeid: node for node in nodes}
 
         self.scopemap = {}
         for scopeid, nodeids in scopes.items():

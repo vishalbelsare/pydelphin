@@ -39,15 +39,21 @@ will use the same methods.
 """
 
 # these may be order-sensitive
-from .components import (
-    Lnk, Node, ElementaryPredication,
-    HandleConstraint, Pred, Link
-)
+# from .components import (
+#     Lnk, Node, ElementaryPredication,
+#     HandleConstraint, Pred, Link
+# )
+
+from ._mrs import (
+    ElementaryPredication,
+    HandleConstraint,
+    IndividualConstraint,
+    MRS)
 from .xmrs import Xmrs, Mrs, Rmrs, Dmrs
 from delphin.util import deprecated
 
-__all__ = ['Lnk', 'Node', 'ElementaryPredication',
-           'HandleConstraint', 'Pred', 'Link', 'Xmrs', 'Mrs', 'Dmrs']
+# __all__ = ['Lnk', 'Node', 'ElementaryPredication',
+#            'HandleConstraint', 'Pred', 'Link', 'Xmrs', 'Mrs', 'Dmrs']
 
 @deprecated(final_version='1.0.0', alternative='delphin.commands.convert()')
 def convert(txt, src_fmt, tgt_fmt, single=True, **kwargs):
