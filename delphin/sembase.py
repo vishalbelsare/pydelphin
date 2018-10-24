@@ -141,6 +141,9 @@ class _LnkMixin(object):
     Lnk is a character span or not; if not, or if Lnk information is
     missing, they return the default value of `-1`.
     """
+
+    __slots__ = ()
+
     @property
     def cfrom(self):
         """
@@ -396,3 +399,139 @@ def normalize_pred_string(predstr):
         tokens = [''] + tokens
     return '_'.join(tokens).lower()
 
+
+class _Node(_LnkMixin):
+
+    __slots__ = ('nodeid', 'predicate', 'type',
+                 'properties', 'carg',
+                 'lnk', 'surface', 'base')
+
+    def __init__(self, nodeid, predicate, type=None,
+                 properties=None, carg=None,
+                 lnk=None, surface=None, base=None):
+        self.nodeid = nodeid
+        self.predicate = predicate
+        self.type = type
+        self.properties = properties
+        self.carg = carg
+        self.lnk = lnk
+        self.surface = surface
+        self.base = base
+
+    def __repr__(self):
+        return '<{} object ({} [{}{}]{}) at {}>'.format(
+            self.__class__.__name__,
+            self.nodeid,
+            str(self.predicate),
+            str(self.lnk) if self.lnk is not None else '',
+            ' "{}"'.format(self.carg) if self.carg is not None else '',
+            id(self)
+        )
+
+
+class _Edge(object):
+
+    __slots__ = ('start', 'end', 'role', 'mode')
+
+    # edge "modes"
+    VARARG = 0  # regular variable argument
+    LBLARG = 1  # argument is a scope identifier
+    QEQARG = 2  # argument is qeq to a scope identifier
+
+    def __init__(self, start, end, role, mode):
+        self.start = start
+        self.end = end
+        self.role = role
+        self.mode = mode
+
+    def __iter__(self):
+        return iter([self.start, self.end, self.role, self.mode])
+
+
+class _SemanticComponent(_LnkMixin):
+
+    __slots__ = ('top', 'index', 'xarg', 'lnk', 'surface', 'identifier')
+
+    def __init__(self, top, index, xarg, lnk, surface, identifier):
+        self.top = top
+        self.index = index
+        self.xarg = xarg
+        self.lnk = lnk
+        self.surface = surface
+        self.identifier = identifier
+
+
+class _XMRS(_SemanticComponent):
+    """
+    Args:
+        top (int): index in conjunctions of top scope
+        index (str): nodeid of top predication
+        xarg (str): nodeid of external argument
+        nodes (list): list of :class:`_Node` objects
+        scopes (dict): map of scopeid (e.g., a label) to a set of nodeids
+        edges (list): list of (nodeid, role, mode, target) tuples
+        lnk: surface alignment of the whole structure
+        surface: surface form of the whole structure
+        identifier: corpus-level identifier
+    """
+    def __init__(self, top, index, xarg,
+                 nodes, scopes, edges,
+                 lnk, surface, identifier):
+        super(_XMRS, self).__init__(top, index, xarg, lnk, surface, identifier)
+        self.nodes = nodes
+        self.scopes = scopes
+        self.edges = edges
+
+        self.scopemap = {}
+        for scopeid, nodeids in scopes.items():
+            for nodeid in nodeids:
+                self.scopemap[nodeid] = scopeid
+        self._nested_scopes = {}
+
+        self.edgemap = {}
+        for edge in self.edges:
+            self.edgemap.setdefault(edge.start, []).append(edge)
+
+    def scope_representatives(self):
+        qs = set()  # quantifiers or quantifiees
+        for edge in self.edges:
+            if edge.role == 'RSTR':
+                qs.add(edge.start)
+                qs.add(edge.end)
+
+        abstract_predicates = set(node.nodeid for node in self.nodes
+                                  if node.predicate.type == Predicate.ABSTRACT)
+
+        candidates = {}
+        for scopeid, nodeids in self.scopes.items():
+            candidates[scopeid] = []
+            nested_scope = self._nested_scope(scopeid)
+            for nodeid in nodeids:
+                edges = self.edgemap.get(nodeid, [])
+                if any(end in nested_scope for _, end, _, _ in edges):
+                    continue
+                candidates[scopeid].append(nodeid)
+
+        for scopeid, nodeids in candidates.items():
+            rank = {}
+            for n in nodeids:
+                if n in qs:
+                    rank[n] = 0
+                elif n in abstract_predicates:
+                    rank[n] = 2
+                else:
+                    rank[n] = 1
+            nodeids.sort(key=lambda n: rank[n])
+
+        return candidates
+
+    def _nested_scope(self, scopeid):
+        if scopeid in self._nested_scopes:
+            return self._nested_scopes[scopeid]
+        self._nested_scopes[scopeid] = ns = set(self.scopes[scopeid])
+        for nodeid in list(ns):
+            for _, end, _, mode in self.edgemap.get(nodeid, []):
+                if mode in (_Edge.LBLARG, _Edge.QEQARG):
+                    endscope = self.scopemap[end]
+                    ns.update(self._nested_scope(endscope))
+        return ns
