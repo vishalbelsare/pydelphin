@@ -15,8 +15,8 @@ from __future__ import print_function
 from collections import OrderedDict
 from io import BytesIO
 import re
-from delphin.mrs import (Dmrs, Node, Link, Pred, Lnk)
-from delphin.mrs.components import (nodes, links)
+from delphin.mrs.xmrs import Dmrs
+from delphin.mrs.components import (Node, Link, Pred, Lnk, nodes, links)
 from delphin.mrs.config import EQ_POST, CVARSORT, CONSTARG_ROLE
 
 
