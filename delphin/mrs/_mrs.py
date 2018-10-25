@@ -12,6 +12,7 @@ from delphin.sembase import (
 UNKNOWNSORT    = 'u' # when nothing is known about the sort
 HANDLESORT     = 'h' # for scopal relations
 IVARG_ROLE     = 'ARG0'
+BODY_ROLE      = 'BODY'
 CONSTARG_ROLE  = 'CARG'
 
 
@@ -144,7 +145,8 @@ class IndividualConstraint(_IndividualConstraint):
 
 class MRS(_SemanticComponent):
 
-    __slots__ = ('rels', 'hcons', 'icons', 'variables')
+    __slots__ = ('rels', 'hcons', 'icons', 'variables',
+                 '_epidx', '_hcidx', '_icidx')
 
     def __init__(self, top=None, index=None, xarg=None,
                  rels=None, hcons=None, icons=None, variables=None,
@@ -163,109 +165,39 @@ class MRS(_SemanticComponent):
         self.icons = icons
         self.variables = _fill_variables(
             variables, top, index, xarg, rels, hcons, icons)
+        self._epidx = {ep.iv: ep for ep in rels if ep.iv is not None}
+        self._hcidx = {hc.hi: hc for hc in hcons}
+        self._icidx = {ic.left: ic for ic in icons}
 
     def to_xmrs(self):
-        nodes = []
         scopes = {}
-        nodemap = {}
         for i, ep in enumerate(self.rels, 10000):
             ep.nodeid = str(i)
-            nodes.append(ep)
             scopes.setdefault(ep.label, set()).add(ep.nodeid)
-            iv = ep.args.get(IVARG_ROLE)
-            if iv is not None:
-                nodemap[iv] = ep.nodeid
-        next_nodeid = i + 1
-
-        hconsmap = {}
-        for hc in self.hcons:
-            hconsmap[hc.hi] = hc.lo
-
-        edges = []
-        for node in nodes:
-            for role, tgt in node.args.items():
-                if role not in (IVARG_ROLE, CONSTARG_ROLE):
-                    if tgt in scopes:
-                        mode = _Edge.LBLARG
-                    elif tgt in hconsmap:
-                        tgt = hconsmap[tgt]
-                        mode = _Edge.QEQARG
-                    elif tgt in nodemap:
-                        tgt = nodemap[tgt]
-                        mode = _Edge.VARARG
-                    else:
-                        if tgt not in nodemap:
-                            nodeid = str(next_nodeid)
-                            next_nodeid += 1
-                            nodemap[tgt] = nodeid
-                            type = var_sort(tgt)
-                            nodes.append(_Node.unexpressed(
-                                nodeid, type, self.properties.get(tgt)))
-                        tgt = nodemap[tgt]
-                        mode = _Edge.UNEXPR
-                    edges.append(_Edge(ep.nodeid, tgt, role, mode))
-
+        nodes, edges = _build_xmrs_structures(self, scopes, i + 1)
         icons = []
         for ic in self.icons:
             icons.append((nodemap.get(ic.left, ic.left),
                           ic.relation,
                           nodemap.get(ic.right, ic.right)))
-
-        x = _XMRS(self.top, nodemap.get(self.index), nodemap.get(self.xarg),
-                  nodes, scopes, edges, icons,
-                  self.lnk, self.surface, self.identifier)
+        return _XMRS(self.top,
+                     self._epidx.get(self.index),
+                     self._epidx.get(self.xarg),
+                     nodes,
+                     scopes,
+                     edges,
+                     icons,
+                     self.lnk,
+                     self.surface,
+                     self.identifier)
 
     @classmethod
     def from_xmrs(cls, x):
         vgen = _VarGenerator()
-        lblmap = {}
-        ivmap = {}
-        for scopeid, nodeids in x.scopes.items():
-            label = lblmap.get(scopeid)
-            if label is None:
-                label = vgen.new(HANDLESORT)[0]
-                lblmap[scopeid] = label
-            for nodeid in nodeids:
-                iv = ivmap.get(nodeid)
-                if iv is None:
-                    node = x.nodemap[nodeid]
-                    iv = vgen.new(node.type, node.properties)[0]
-                    ivmap[nodeid] = iv
-
-        rels = []
-        hcons = []
-        for node in x.nodes:
-            args = {}
-            if node.type is not None:
-                args[IVARG_ROLE] = ivmap[node.nodeid]
-            for start, end, role, mode in x.edgemap.get(node.nodeid, []):
-                if mode == _Edge.VARARG:
-                    args[role] = ivmap[end]
-                elif mode == _Edge.LBLARG:
-                    args[role] = lblmap[end]
-                elif mode == _Edge.QEQARG:
-                    hole = vgen.new(HANDLESORT)[0]
-                    args[role] = hole
-                    hcons.append(HandleConstraint.qeq(hole, lblmap[end]))
-                elif mode == _Edge.UNEXPR:
-                    if end not in ivmap:
-                        unexpr = x.nodemap[end]
-                        ivmap[end] = vgen.new(unexpr.type,
-                                              unexpr.properties)[0]
-                    args[role] = ivmap[end]
-            if node.carg is not None:
-                args[CONSTARG_ROLE] = node.carg
-
-            nodescope = x.scopemap[node.nodeid]
-            label = lblmap[nodescope]
-
-            rels.append(ElementaryPredication(
-                node.predicate, label, args=args,
-                lnk=node.lnk, surface=node.surface, base=node.base))
-
+        lblmap, ivmap = _build_varmaps(x, vgen)
+        rels, hcons = _build_structures(x, lblmap, ivmap, vgen)
         icons = [IndividualConstraint(ivmap[left], relation, ivmap[right])
                  for left, relation, right in x.icons]
-
         return cls(top=lblmap.get(x.top),
                    index=ivmap.get(x.index),
                    xarg=ivmap.get(x.xarg),
@@ -307,6 +239,86 @@ def _fill_variables(vars, top, index, xarg, rels, hcons, icons):
         if ic.right not in vars:
             vars[ic.right] = []
     return vars
+
+
+def _build_xmrs_structures(m, scopes, next_nodeid):
+    nodes = []
+    edges = []
+    nodemap = m._epidx  # to avoid extra lookups later
+    for ep in m.rels:
+        nodes.append(ep)
+        for role, tgt in ep.args.items():
+            if role not in (IVARG_ROLE, BODY_ROLE, CONSTARG_ROLE):
+                if tgt in scopes:
+                    mode = _Edge.LBLARG
+                elif tgt in m._hcidx:
+                    tgt = m._hcidx[tgt]
+                    mode = _Edge.QEQARG
+                elif tgt in nodemap:
+                    tgt = nodemap[tgt]
+                    mode = _Edge.VARARG
+                else:
+                    if tgt not in nodemap:
+                        nodeid = str(next_nodeid)
+                        next_nodeid += 1
+                        nodemap[tgt] = nodeid
+                        type = var_sort(tgt)
+                        nodes.append(_Node.unexpressed(
+                            nodeid, type, dict(m.variables.get(tgt, []))))
+                    tgt = nodemap[tgt]
+                    mode = _Edge.UNEXPR
+                edges.append(_Edge(ep.nodeid, tgt, role, mode))
+    return nodes, edges
+
+
+def _build_varmaps(x, vgen):
+    lblmap = {}
+    ivmap = {}
+    for scopeid, nodeids in x.scopes.items():
+        label = lblmap.get(scopeid)
+        if label is None:
+            label = vgen.new(HANDLESORT)[0]
+            lblmap[scopeid] = label
+        for nodeid in nodeids:
+            iv = ivmap.get(nodeid)
+            if iv is None:
+                node = x.nodemap[nodeid]
+                iv = vgen.new(node.type, node.properties)[0]
+                ivmap[nodeid] = iv
+    return lblmap, ivmap
+
+
+def _build_structures(x, lblmap, ivmap, vgen):
+    rels = []
+    hcons = []
+    for node in x.nodes:
+        args = {}
+        if node.type is not None:
+            args[IVARG_ROLE] = ivmap[node.nodeid]
+        for edge in x.edgemap.get(node.nodeid, []):
+            end, role, mode = edge.end, edge.role, edge.mode
+            if mode == _Edge.VARARG:
+                args[role] = ivmap[end]
+            elif mode == _Edge.LBLARG:
+                args[role] = lblmap[end]
+            elif mode == _Edge.QEQARG:
+                hole = vgen.new(HANDLESORT)[0]
+                args[role] = hole
+                hcons.append(HandleConstraint.qeq(hole, lblmap[end]))
+            elif mode == _Edge.UNEXPR:
+                if end not in ivmap:
+                    unexpr = x.nodemap[end]
+                    ivmap[end] = vgen.new(unexpr.type,
+                                          unexpr.properties)[0]
+                args[role] = ivmap[end]
+        if node.carg is not None:
+            args[CONSTARG_ROLE] = node.carg
+        nodescope = x.scopemap[node.nodeid]
+        label = lblmap[nodescope]
+        rels.append(ElementaryPredication(
+            node.predicate, label, args=args,
+            lnk=node.lnk, surface=node.surface, base=node.base))
+    return rels, hcons
 
 
 # VARIABLES

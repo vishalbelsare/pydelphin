@@ -9,13 +9,13 @@ p = Predicate.surface
 @pytest.fixture
 def dogs_bark():
     return {
-        'top': 1,
-        'index': 1,
-        'nodes': [Node(1, p('_bark_v_1_rel'), sortinfo={'cvarsort': 'e'}),
-                  Node(2, p('udef_q_rel')),
-                  Node(3, p('_dog_n_1_rel'), sortinfo={'cvarsort': 'x'})],
-        'links': [Link(1, 3, 'ARG1', 'NEQ'),
-                  Link(2, 3, 'RSTR', 'H')]}
+        'top': 10000,
+        'index': 10000,
+        'nodes': [Node(10000, p('_bark_v_1_rel'), sortinfo={'cvarsort': 'e'}),
+                  Node(10001, p('udef_q_rel')),
+                  Node(10002, p('_dog_n_1_rel'), sortinfo={'cvarsort': 'x'})],
+        'links': [Link(10000, 10002, 'ARG1', 'NEQ'),
+                  Link(10001, 10002, 'RSTR', 'H')]}
 
 
 def test_empty_DMRS():
@@ -29,8 +29,8 @@ def test_empty_DMRS():
 
 def test_basic_DMRS(dogs_bark):
     d = DMRS(**dogs_bark)
-    assert d.top is 1
-    assert d.index is 1
+    assert d.top == 10000
+    assert d.index == 10000
     assert d.xarg is None
     assert len(d.nodes) == 3
     assert d.nodes[0].predicate == '_bark_v_1_rel'
@@ -42,13 +42,23 @@ def test_basic_DMRS(dogs_bark):
 
 
 def test_DMRS_from_xmrs(dogs_bark):
-    x = _XMRS(1, 1, None,
+    x = _XMRS(10000, 10000, None,
               dogs_bark['nodes'],
-              {0: {1}, 1: {2}, 2: {3}},
-              [_Edge(1, 3, 'ARG1', _Edge.VARARG),
-               _Edge(2, 2, 'RSTR', _Edge.QEQARG)],
+              {0: {10000}, 1: {10001}, 2: {10002}},
+              [_Edge(10000, 10002, 'ARG1', _Edge.VARARG),
+               _Edge(10001, 2, 'RSTR', _Edge.QEQARG)],
               [],
               None, None, None)
     d = DMRS.from_xmrs(x)
+    assert d.nodes == dogs_bark['nodes']
+    assert d.links == dogs_bark['links']
+
+def test_DMRS_to_xmrs(dogs_bark):
+    d = DMRS(**dogs_bark)
+    x = d.to_xmrs()
+    assert x.nodes == d.nodes
+    assert len(x.scopes) == 3
+    # assert x.edges == [
+    #     _Edge(
 
 # test when TOP is QEQ and HEQ

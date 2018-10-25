@@ -68,3 +68,9 @@ def test_MRS_from_xmrs(dogs_bark):
               [],
               None, None, None)
     m = MRS.from_xmrs(x)
+
+def test_MRS_to_xmrs(dogs_bark):
+    m = MRS(**dogs_bark)
+    x = m.to_xmrs()
+    assert len(x.nodes) == 3
+    assert len(x.scopes) == 3

@@ -9,10 +9,7 @@ from delphin.sembase import (
     _Edge,
     _SemanticComponent,
     _XMRS)
-from delphin.mrs.components import (
-    Link, links, nodes,
-    HandleConstraint, _VarGenerator)
-from delphin.util import safe_int, _bfs
+from delphin.util import _connected_components
 
 
 TOP_NODEID   = 0
@@ -58,8 +55,6 @@ class Node(_Node):
         cfrom (int): surface alignment starting position
         cto (int): surface alignment ending position
     """
-
-    __slots__ = 'properties'
 
     def __init__(self, nodeid, predicate, sortinfo=None, carg=None,
                  lnk=None, surface=None, base=None):
@@ -137,6 +132,19 @@ class Link(object):
             self.start, self.rargname or '', self.post, self.end, id(self)
         )
 
+    def __eq__(self, other):
+        if not isinstance(other, Link):
+            return NotImplemented
+        return (self.start == other.start and
+                self.end == other.end and
+                self.role == other.role and
+                self.post == other.post)
+
+    def __ne__(self, other):
+        if not isinstance(other, Link):
+            return NotImplemented
+        return not self.__eq__(other)
+
     @property
     def rargname(self):
         return self.role
@@ -176,7 +184,8 @@ class DMRS(_SemanticComponent):
     >>> d = DMRS([rain], [ltop_link])
     """
 
-    __slots__ = ('nodes', 'links', '_nodeidx', '_linkstartidx', '_linkendidx')
+    __slots__ = ('nodes', 'links',
+                 '_nodeidx', '_linkstartidx', '_linkendidx')
 
     def __init__(self, top=None, index=None, xarg=None,
                  nodes=None, links=None,
@@ -188,82 +197,99 @@ class DMRS(_SemanticComponent):
         if links is None:
             links = []
         self.nodes = nodes
-        self._nodeidx = {n.nodeid: n for n in nodes}
         self.links = links
+        self._nodeidx = {n.nodeid: n for n in nodes}
         self._linkstartidx = {l.start: l for l in links}
         self._linkendidx = {l.end: l for l in links}
 
     def to_xmrs(self):
-        scopes = _scopes(self)
-        edges = _xmrs_edges(self, scopes)
-        return _XMRS(
-            top=top,
-            index=index,
-            xarg=xarg,
-            nodes=self.nodes,
-            scopes=scopes,
-            edges=edges,
-            icons=None,
-            lnk=self.lnk,
-            surface=self.surface,
-            identifier=self.identifier)
+        scopes = _build_scopes(self)
+        scopemap = {}
+        for scopeid, nodeids in scopes.items():
+            for nodeid in nodeids:
+                scopemap[nodeid] = scopeid
+        top = scopemap.get(self.top)
+        edges = _build_xmrs_edges(self, scopemap)
+        return _XMRS(top=top,
+                     index=self.index,
+                     xarg=self.xarg,
+                     nodes=self.nodes,
+                     scopes=scopes,
+                     edges=edges,
+                     icons=None,
+                     lnk=self.lnk,
+                     surface=self.surface,
+                     identifier=self.identifier)
 
     @classmethod
     def from_xmrs(cls, x):
+        nodes = _build_nodes(x)
         reps = x.scope_representatives()
-        nodes = []
-        for n in x.nodes:
-            sortinfo = [(CVARSORT, n.type)] + list(n.properties.items())
-            nodes.append(Node(
-                n.nodeid, n.predicate, sortinfo, n.carg,
-                n.lnk, n.surface, n.base))
-        scopemap = x.scopemap
-        links = []
-        for (src, tgt, role, mode) in x.edges:
-            tgtscope = scopemap[tgt]
-            if mode == _Edge.VARARG:
-                post = EQ_POST if scopemap[src] == tgtscope else NEQ_POST
-            elif mode == _Edge.LBLARG:
-                tgt = reps[tgtscope][0]
-                post = HEQ_POST
-            elif mode == _Edge.QEQARG:
-                tgt = reps[tgtscope][0]
-                post = H_POST
-            # elif mode == _Edge.UNEXPR:
-            #     ...
-            else:
-                raise ValueError('invalid XMRS edge: ({}, {}, {}, {})'
-                                 .format(src, tgt, role, mode))
-            links.append(Link(src, tgt, role, post))
-        topscope = scopemap[x.top]
+        links = _build_links(x, reps)
+        topscope = x.scopemap[x.top]
         top = reps.get(topscope, [None])[0]
-        return cls(top, x.index, x.xarg, nodes, links,
-                   x.lnk, x.surface, x.identifier)
+        return cls(top,
+                   x.index,
+                   x.xarg,
+                   nodes,
+                   links,
+                   x.lnk,
+                   x.surface,
+                   x.identifier)
 
 
-def _scopes(d):
+def _build_scopes(d):
     nodes = [node.nodeid for node in d.nodes]
-    edges = [(link.start, link.end) for link in d.links]
+    edges = [(link.start, link.end) for link in d.links
+             if link.post == EQ_POST]
     components = _connected_components(nodes, edges)
-    scopes = {}
-    for i, component in enumerate(components, 1):
-        for nodeid in component:
-            scopes[nodeid] = i
+    scopes = {i: nodeids for i, nodeids in enumerate(components, 1)}
     return scopes
 
 
-def _xmrs_edges(d, scopes):
+def _build_xmrs_edges(d, scopemap):
     edges = []
     for link in d.links:
         if link.role == BARE_EQ_ROLE:
             continue
         if link.post == H_POST:
             mode = _Edge.QEQARG
-            tgt = scopes[link.end]
+            tgt = scopemap[link.end]
         elif link.post == HEQ_POST:
             mode = _Edge.LBLARG
-            tgt = scopes[link.end]
+            tgt = scopemap[link.end]
         else:
             mode = _Edge.VARARG
             tgt = link.end
-        edges.append((linkstart, link.role, mode, tgt))
+        edges.append(_Edge(link.start, tgt, link.role, mode))
+    return edges
+
+def _build_nodes(x):
+    nodes = []
+    for n in x.nodes:
+        sortinfo = [(CVARSORT, n.type)] + list(n.properties.items())
+        nodes.append(Node(
+            n.nodeid, n.predicate, sortinfo, n.carg,
+            n.lnk, n.surface, n.base))
+    return nodes
+
+def _build_links(x, reps):
+    links = []
+    scopemap = x.scopemap
+    for edge in x.edges:
+        src, tgt, role, mode = edge.start, edge.end, edge.role, edge.mode
+        if mode == _Edge.VARARG:
+            post = EQ_POST if scopemap[src] == scopemap[tgt] else NEQ_POST
+        elif mode == _Edge.LBLARG:
+            tgt = reps[tgt][0]
+            post = HEQ_POST
+        elif mode == _Edge.QEQARG:
+            tgt = reps[tgt][0]
+            post = H_POST
+        # elif mode == _Edge.UNEXPR:
+        #     ...
+        else:
+            raise ValueError('invalid XMRS edge: ({}, {}, {}, {})'
+                             .format(src, tgt, role, mode))
+        links.append(Link(src, tgt, role, post))
+    return links

@@ -434,6 +434,19 @@ class _Node(_LnkMixin):
             id(self)
         )
 
+    def __eq__(self, other):
+        if not isinstance(other, _Node):
+            return NotImplemented
+        return (self.predicate == other.predicate and
+                self.type == other.type and
+                self.properties == other.properties and
+                self.carg == other.carg)
+
+    def __ne__(self, other):
+        if not isinstance(other, _Node):
+            return NotImplemented
+        return not self.__eq__(other)
+
 
 class _Edge(object):
 
@@ -450,9 +463,6 @@ class _Edge(object):
         self.end = end
         self.role = role
         self.mode = mode
-
-    def __iter__(self):
-        return iter([self.start, self.end, self.role, self.mode])
 
 
 class _IndividualConstraint(object):
@@ -525,13 +535,16 @@ class _XMRS(_SemanticComponent):
 
         candidates = {}
         for scopeid, nodeids in self.scopes.items():
-            candidates[scopeid] = []
-            nested_scope = self._nested_scope(scopeid)
-            for nodeid in nodeids:
-                edges = self.edgemap.get(nodeid, [])
-                if any(end in nested_scope for _, end, _, _ in edges):
-                    continue
-                candidates[scopeid].append(nodeid)
+            if len(nodeids) == 1:
+                candidates[scopeid] = list(nodeids)
+            else:
+                candidates[scopeid] = []
+                nested_scope = self._nested_scope(scopeid)
+                for nodeid in nodeids:
+                    edges = self.edgemap.get(nodeid, [])
+                    if any(end in nested_scope for _, end, _, _ in edges):
+                        continue
+                    candidates[scopeid].append(nodeid)
 
         for scopeid, nodeids in candidates.items():
             rank = {}
@@ -553,6 +566,5 @@ class _XMRS(_SemanticComponent):
         for nodeid in list(ns):
             for _, end, _, mode in self.edgemap.get(nodeid, []):
                 if mode in (_Edge.LBLARG, _Edge.QEQARG):
-                    endscope = self.scopemap[end]
-                    ns.update(self._nested_scope(endscope))
+                    ns.update(self._nested_scope(end))
         return ns
