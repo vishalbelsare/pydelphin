@@ -7,8 +7,6 @@ DMRX (XML for DMRS) serialization and deserialization.
 
 from __future__ import print_function
 
-from collections import OrderedDict
-import re
 import xml.etree.ElementTree as etree
 
 from delphin.sembase import Lnk, Predicate
@@ -28,9 +26,9 @@ def load(fh):
     Args:
         fh (str, file): input filename or file object
     Returns:
-        a generator of Xmrs objects
+        a generator of DMRS objects
     """
-    ms = deserialize(fh)
+    ms = _decode(fh)
     return ms
 
 
@@ -41,26 +39,27 @@ def loads(s):
     Args:
         s (str): a DMRX string
     Returns:
-        a generator of Xmrs objects
+        a generator of DMRS objects
     """
     corpus = etree.fromstring(s)
-    ds = (_deserialize_dmrs(dmrs_elem) for dmrs_elem in corpus)
+    ds = (_decode_dmrs(dmrs_elem) for dmrs_elem in corpus)
     return ds
 
 
-def dump(destination, ms, properties=True, pretty_print=False, **kwargs):
+def dump(ds, destination, properties=True, indent=False, **kwargs):
     """
-    Serialize Xmrs objects to DMRX and write to a file
+    Serialize DMRS objects to DMRX and write to a file
 
     Args:
+        ds: an iterator of DMRS objects to serialize
         destination: filename or file object where data will be written
-        ms: an iterator of Xmrs objects to serialize
-        properties: if `False`, suppress variable properties
-        pretty_print: if `True`, add newlines and indentation
+        properties: if `False`, suppress morphosemantic properties
+        indent (bool, int): if `True` or an integer value, add
+            newlines and indentation
     """
-    text = dumps(ms,
+    text = dumps(ds,
                  properties=properties,
-                 pretty_print=pretty_print,
+                 indent=indent,
                  **kwargs)
 
     if hasattr(destination, 'write'):
@@ -70,34 +69,32 @@ def dump(destination, ms, properties=True, pretty_print=False, **kwargs):
             print(text, file=fh)
 
 
-def dumps(ms, properties=True, pretty_print=False, **kwargs):
+def dumps(ds, properties=True, indent=False, **kwargs):
     """
-    Serialize an Xmrs object to a DMRX representation
+    Serialize a DMRS object to a DMRX representation
 
     Args:
-        ms: an iterator of Xmrs objects to serialize
+        ds: an iterator of DMRS objects to serialize
         properties: if `False`, suppress variable properties
-        pretty_print: if `True`, add newlines and indentation
+        indent (bool, int): if `True` or an integer value, add
+            newlines and indentation
     Returns:
-        a DMRX string representation of a corpus of Xmrs
+        a DMRX string representation of a corpus of DMRS objects
     """
-    if not pretty_print and kwargs.get('indent'):
-        pretty_print = True
-    return serialize(ms, properties=properties, pretty_print=pretty_print)
+    return _encode(ds, properties=properties, indent=indent)
 
 
 def decode(s):
     elem = etree.fromstring(s)
-    return _deserialize_dmrs(elem)
+    return _decode_dmrs(elem)
 
 
 def encode(d, properties=True, indent=False):
     elem = _encode_dmrs(d, properties=properties)
 
-    if indent in ('LKB', 'Lkb', 'lkb', True):
-        _indent(elem, indent=0, maxdepth=1, level=0)
+    if indent is True or indent in ('LKB', 'Lkb', 'lkb'):
+        _indent(elem, indent=0, maxdepth=2, level=0)
     elif indent is not False and indent is not None:
-        i = ' ' * indent
         _indent(elem, indent, maxdepth=3, level=0)
 
     s = etree_tostring(elem, encoding='unicode').rstrip()
@@ -108,17 +105,17 @@ def encode(d, properties=True, indent=False):
 ##############################################################################
 # Decoding
 
-def deserialize(fh):
+def _decode(fh):
     # <!ELEMENT dmrs-list (dmrs)*>
     # if memory becomes a big problem, consider catching start events,
     # get the root element (later start events can be ignored), and
     # root.clear() after decoding each mrs
     for _, elem in etree.iterparse(fh, events=('end',)):
         if elem.tag == 'dmrs':
-            yield _deserialize_dmrs(elem)
+            yield _decode_dmrs(elem)
             elem.clear()
 
-def _deserialize_dmrs(elem):
+def _decode_dmrs(elem):
     # <!ELEMENT dmrs (node|link)*>
     # <!ATTLIST dmrs
     #           cfrom CDATA #REQUIRED
@@ -126,11 +123,11 @@ def _deserialize_dmrs(elem):
     #           surface   CDATA #IMPLIED
     #           ident     CDATA #IMPLIED >
     elem = elem.find('.')  # in case elem is an ElementTree rather than Element
-    return DMRS(nodes=list(map(_decode_node, elem.iter('node'))),
-                links=list(map(_decode_link, elem.iter('link'))),
-                top=elem.get('top'),
+    return DMRS(top=elem.get('top'),
                 index=elem.get('index'),
                 xarg=elem.get('xarg'),
+                nodes=list(map(_decode_node, elem.iter('node'))),
+                links=list(map(_decode_link, elem.iter('link'))),
                 lnk=_decode_lnk(elem),
                 surface=elem.get('surface'),
                 identifier=elem.get('ident'))
@@ -145,8 +142,8 @@ def _decode_node(elem):
     #           surface   CDATA #IMPLIED
     #           base      CDATA #IMPLIED
     #           carg CDATA #IMPLIED >
-    return Node(pred=_decode_pred(elem.find('*[1]')),
-                nodeid=elem.get('nodeid'),
+    return Node(nodeid=elem.get('nodeid'),
+                predicate=_decode_pred(elem.find('*[1]')),
                 sortinfo=_decode_sortinfo(elem.find('sortinfo')),
                 lnk=_decode_lnk(elem),
                 surface=elem.get('surface'),
@@ -196,7 +193,7 @@ def _decode_link(elem):
     # <!ELEMENT post (#PCDATA)>
     return Link(start=elem.get('from'),
                 end=elem.get('to'),
-                rargname=getattr(elem.find('rargname'), 'text', None),
+                role=getattr(elem.find('rargname'), 'text', None),
                 post=getattr(elem.find('post'), 'text', None))
 
 
@@ -208,23 +205,22 @@ def _decode_lnk(elem):
 # Encoding
 
 
-def serialize(ds, properties=True, encoding='unicode', pretty_print=False):
+def _encode(ds, properties=True, encoding='unicode', indent=False):
     e = etree.Element('dmrs-list')
     for d in ds:
         e.append(_encode_dmrs(d, properties))
-    # for now, pretty_print=True is the same as pretty_print='LKB'
-    if pretty_print in ('LKB', 'lkb', 'Lkb', True):
-        lkb_pprint_re = re.compile(r'(<dmrs[^>]+>|</node>|</link>|</dmrs>)')
-        string = str(etree_tostring(e, encoding=encoding))
-        return lkb_pprint_re.sub(r'\1\n', string)
-    # pretty_print is only lxml. Look into tostringlist, maybe?
-    # return etree.tostring(e, pretty_print=pretty_print, encoding='unicode')
-    return etree_tostring(e, encoding=encoding)
+
+    if indent is True or indent in ('LKB', 'Lkb', 'lkb'):
+        _indent(e, indent=0, maxdepth=3, level=0)
+    elif indent is not False and indent is not None:
+        _indent(e, indent, maxdepth=4, level=0)
+
+    return etree_tostring(e, encoding=encoding).rstrip()
 
 
 def _encode_dmrs(d, properties):
-    attributes = OrderedDict([('cfrom', str(d.cfrom)),
-                              ('cto', str(d.cto))])
+    attributes = dict([('cfrom', str(d.cfrom)),
+                       ('cto', str(d.cto))])
     if d.top is not None:
         attributes['top'] = str(d.top)
     if d.index is not None:
@@ -244,9 +240,9 @@ def _encode_dmrs(d, properties):
 
 
 def _encode_node(node, properties):
-    attributes = OrderedDict([('nodeid', str(node.nodeid)),
-                              ('cfrom', str(node.cfrom)),
-                              ('cto', str(node.cto))])
+    attributes = dict([('nodeid', str(node.nodeid)),
+                       ('cfrom', str(node.cfrom)),
+                       ('cto', str(node.cto))])
     if node.surface is not None:
         attributes['surface'] = node.surface
     if node.base is not None:
@@ -277,7 +273,7 @@ def _encode_pred(pred):
 
 
 def _encode_sortinfo(node, properties):
-    attributes = OrderedDict()
+    attributes = dict()
     # return empty <sortinfo/> for quantifiers
     if node.predicate.pos == QUANTIFIER_POS:
         return etree.Element('sortinfo')  # return empty <sortinfo/>
@@ -308,11 +304,14 @@ def _indent(elem, indent, maxdepth, level):
     curind = '\n' + ' ' * indent * level
     nxtind = '\n' + ' ' * indent * (level + 1)
     if len(elem):
-        if not elem.text:
+        if not elem.text and level + 1 < maxdepth:
             elem.text = nxtind
         elem.tail = curind
         for elem in elem:
             _indent(elem, indent, maxdepth, level + 1)
-        elem.tail = curind
+        if level + 1 < maxdepth:
+            elem.tail = curind
+        else:
+            elem.tail = ''
     else:
         elem.tail = curind
