@@ -27,10 +27,10 @@ def load(source):
     Args:
         source (str, file): input filename or file object
     Returns:
-        a generator of DMRS objects
+        a list of DMRS objects
     """
     ms = _decode(source)
-    return ms
+    return list(ms)
 
 
 def loads(s):
@@ -40,11 +40,11 @@ def loads(s):
     Args:
         s (str): a DMRX string
     Returns:
-        a generator of DMRS objects
+        a list of DMRS objects
     """
     corpus = etree.fromstring(s)
     ds = (_decode_dmrs(dmrs_elem) for dmrs_elem in corpus)
-    return ds
+    return list(ds)
 
 
 def dump(ds, destination, properties=True, indent=False, encoding='utf-8'):

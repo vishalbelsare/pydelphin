@@ -203,11 +203,7 @@ class DMRS(_SemanticComponent):
         self._linkendidx = {l.end: l for l in links}
 
     def to_xmrs(self):
-        scopes = _build_scopes(self)
-        scopemap = {}
-        for scopeid, nodeids in scopes.items():
-            for nodeid in nodeids:
-                scopemap[nodeid] = scopeid
+        scopes, scopemap = _build_scopes(self)
         top = scopemap.get(self.top)
         edges = _build_xmrs_edges(self, scopemap)
         return _XMRS(top=top,
@@ -244,7 +240,13 @@ def _build_scopes(d):
              if link.post == EQ_POST]
     components = _connected_components(nodes, edges)
     scopes = {i: nodeids for i, nodeids in enumerate(components, 1)}
-    return scopes
+
+    scopemap = {}
+    for scopeid, nodeids in scopes.items():
+        for nodeid in nodeids:
+            scopemap[nodeid] = scopeid
+
+    return scopes, scopemap
 
 
 def _build_xmrs_edges(d, scopemap):
