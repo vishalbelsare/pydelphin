@@ -7,6 +7,7 @@ DMRX (XML for DMRS) serialization and deserialization.
 
 from __future__ import print_function
 
+import io
 import xml.etree.ElementTree as etree
 
 from delphin.sembase import Lnk, Predicate
@@ -19,16 +20,16 @@ from delphin.mrs.util import etree_tostring
 # Pickle-API methods
 
 
-def load(fh):
+def load(source):
     """
     Deserialize DMRX from a file (handle or filename)
 
     Args:
-        fh (str, file): input filename or file object
+        source (str, file): input filename or file object
     Returns:
         a generator of DMRS objects
     """
-    ms = _decode(fh)
+    ms = _decode(source)
     return ms
 
 
@@ -46,7 +47,7 @@ def loads(s):
     return ds
 
 
-def dump(ds, destination, properties=True, indent=False, **kwargs):
+def dump(ds, destination, properties=True, indent=False, encoding='utf-8'):
     """
     Serialize DMRS objects to DMRX and write to a file
 
@@ -56,22 +57,23 @@ def dump(ds, destination, properties=True, indent=False, **kwargs):
         properties: if `False`, suppress morphosemantic properties
         indent (bool, int): if `True` or an integer value, add
             newlines and indentation
+        encoding (str): if *destination* is a filename, write to the
+            file with the given encoding; otherwise it is ignored
     """
     text = dumps(ds,
                  properties=properties,
-                 indent=indent,
-                 **kwargs)
+                 indent=indent)
 
     if hasattr(destination, 'write'):
         print(text, file=destination)
     else:
-        with open(destination, 'w') as fh:
+        with io.open(destination, 'w', encoding=encoding) as fh:
             print(text, file=fh)
 
 
-def dumps(ds, properties=True, indent=False, **kwargs):
+def dumps(ds, properties=True, indent=False):
     """
-    Serialize a DMRS object to a DMRX representation
+    Serialize DMRS objects to a DMRX representation
 
     Args:
         ds: an iterator of DMRS objects to serialize
@@ -85,11 +87,33 @@ def dumps(ds, properties=True, indent=False, **kwargs):
 
 
 def decode(s):
+    """
+    Deserialize a DMRS object from a DMRX string.
+
+    Note:
+        This does not expect the top-level <dmrs-list> element.
+    """
     elem = etree.fromstring(s)
     return _decode_dmrs(elem)
 
 
 def encode(d, properties=True, indent=False):
+    """
+    Serialize a DMRS object to a DMRX string.
+
+    Note:
+        This does not include the top-level <dmrs-list> element, so it
+        is not valid with the DMRX schema, but it may be more useful
+        if you work with single DMRX objects at a time rather than
+        lists of them.
+    Args:
+        d: a DMRS object
+        properties (bool): if `False`, suppress variable properties
+        indent (bool, int): if `True` or an integer value, add
+            newlines and indentation
+    Returns:
+        a DMRX-serialization of the DMRS object
+    """
     elem = _encode_dmrs(d, properties=properties)
 
     if indent is True or indent in ('LKB', 'Lkb', 'lkb'):
