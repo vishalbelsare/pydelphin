@@ -326,14 +326,14 @@ def _build_structures(x, lblmap, ivmap, vgen):
 var_re = re.compile(r'^([-\w]*\D)(\d+)$')
 
 
-def sort_vid_split(vs):
+def var_split(vs):
     """
     Split a valid variable string into its variable sort and id.
 
     Examples:
-        >>> sort_vid_split('h3')
+        >>> var_split('h3')
         ('h', '3')
-        >>> sort_vid_split('ref-ind12')
+        >>> var_split('ref-ind12')
         ('ref-ind', '12')
     """
     match = var_re.match(vs)
@@ -353,7 +353,7 @@ def var_sort(v):
         >>> var_sort('ref-ind12')
         'ref-ind'
     """
-    return sort_vid_split(v)[0]
+    return var_split(v)[0]
 
 
 def var_id(v):
@@ -366,7 +366,7 @@ def var_id(v):
         >>> var_id('ref-ind12')
         12
     """
-    return int(sort_vid_split(v)[1])
+    return int(var_split(v)[1])
 
 
 class _VarGenerator(object):

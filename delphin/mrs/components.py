@@ -36,6 +36,7 @@ from delphin.sembase import (
 var_re = re.compile(r'^([-\w]*\D)(\d+)$')
 
 
+@deprecated(final_version='1.0.0', alternative='delphin.mrs.var_split')
 def sort_vid_split(vs):
     """
     Split a valid variable string into its variable sort and id.
@@ -53,6 +54,7 @@ def sort_vid_split(vs):
         return match.groups()
 
 
+@deprecated(final_version='1.0.0', alternative='delphin.mrs.var_sort')
 def var_sort(v):
     """
     Return the sort of a valid variable string.
@@ -66,6 +68,7 @@ def var_sort(v):
     return sort_vid_split(v)[0]
 
 
+@deprecated(final_version='1.0.0', alternative='delphin.mrs.var_id')
 def var_id(v):
     """
     Return the integer id of a valid variable string.
@@ -85,6 +88,7 @@ class _VarGenerator(object):
     one.
     """
 
+    @deprecated(final_version='1.0.0', alternative='delphin.msr._VarGenerator')
     def __init__(self, starting_vid=1):
         self.vid = starting_vid
         self.index = {}  # to map vid to created variable
@@ -134,6 +138,7 @@ class Link(namedtuple('Link', ('start', 'end', 'rargname', 'post'))):
         post (str): "post-slash label" indicating the scopal
             relationship between the start and end of the Link
     """
+    @deprecated(final_version='1.0.0', alternative='delphin.dmrs.Link')
     def __new__(cls, start, end, rargname, post):
         return super(Link, cls).__new__(
             cls, start, end, rargname, post
@@ -145,6 +150,7 @@ class Link(namedtuple('Link', ('start', 'end', 'rargname', 'post'))):
         )
 
 
+@deprecated(final_version='1.0.0')
 def links(xmrs):
     """Return the list of Links for the *xmrs*."""
 
@@ -237,6 +243,11 @@ class HandleConstraint(
         lo (str): lo handle (label) of the constraint
     """
 
+    @deprecated(final_version='1.0.0',
+                alternative='delphin.mrs.HandleConstraint')
+    def __init__(self, hi, relation, lo):
+        pass
+
     QEQ = 'qeq'  # Equality modulo Quantifiers
     LHEQ = 'lheq'  # Label-Handle Equality
     OUTSCOPES = 'outscopes'  # Outscopes
@@ -251,6 +262,7 @@ class HandleConstraint(
         )
 
 
+@deprecated(final_version='1.0.0')
 def hcons(xmrs):
     """Return the list of all HandleConstraints in *xmrs*."""
     return [
@@ -273,7 +285,13 @@ class IndividualConstraint(
         relation (str): relation of the constraint
         right (str): right variable of the constraint
     """
+    @deprecated(final_version='1.0.0',
+                alternative='delphin.mrs.IndividualConstraint')
+    def __init__(self, left, relation, right):
+        pass
 
+
+@deprecated(final_version='1.0.0')
 def icons(xmrs):
     """Return the list of all IndividualConstraints in *xmrs*."""
     return [
@@ -308,7 +326,6 @@ class Node(
         base (str, optional): base form
         carg (str, optional): constant argument string
     Attributes:
-        Attributes:
         pred (:class:`Pred`): semantic predicate
         sortinfo (dict): mapping of morphosyntactic
             properties and values; the `cvarsort` property is
@@ -321,6 +338,7 @@ class Node(
         cto (int): surface alignment ending position
     """
 
+    @deprecated(final_version='1.0.0', alternative='delphin.dmrs.Node')
     def __new__(cls, nodeid, pred, sortinfo=None,
                  lnk=None, surface=None, base=None, carg=None):
         if sortinfo is None:
@@ -408,6 +426,7 @@ class Node(
         return self.pred.is_quantifier()
 
 
+@deprecated(final_version='1.0.0')
 def nodes(xmrs):
     """Return the list of Nodes for *xmrs*."""
     nodes = []
@@ -462,6 +481,8 @@ class ElementaryPredication(
         cto (int): surface alignment ending position
     """
 
+    @deprecated(final_version='1.0.0',
+                alternative='delphin.mrs.ElementaryPredication')
     def __new__(cls, nodeid, pred, label, args=None,
                  lnk=None, surface=None, base=None):
         if args is None:
@@ -515,6 +536,7 @@ class ElementaryPredication(
         return RSTR_ROLE in self.args
 
 
+@deprecated(final_version='1.0.0')
 def elementarypredications(xmrs):
     """
     Return the list of :class:`ElementaryPredication` objects in *xmrs*.
@@ -522,6 +544,7 @@ def elementarypredications(xmrs):
     return list(starmap(ElementaryPredication, xmrs.eps()))
 
 
+@deprecated(final_version='1.0.0')
 def elementarypredication(xmrs, nodeid):
     """
     Retrieve the elementary predication with the given nodeid.

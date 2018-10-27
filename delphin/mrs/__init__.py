@@ -48,7 +48,10 @@ from ._mrs import (
     ElementaryPredication,
     HandleConstraint,
     IndividualConstraint,
-    MRS)
+    MRS,
+    var_split,
+    var_sort,
+    var_id)
 from .xmrs import Xmrs, Mrs, Rmrs, Dmrs
 from delphin.util import deprecated
 
