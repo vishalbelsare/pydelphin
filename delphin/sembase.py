@@ -453,10 +453,11 @@ class _Edge(object):
     __slots__ = ('start', 'end', 'role', 'mode')
 
     # edge "modes"
-    VARARG = 0  # regular variable argument
-    LBLARG = 1  # argument is a scope identifier
-    QEQARG = 2  # argument is qeq to a scope identifier
-    UNEXPR = 3  # argument is unexpressed
+    UNSPEC = 0  # mode is unspecified
+    VARARG = 1  # regular variable argument
+    LBLARG = 2  # argument is a scope identifier
+    QEQARG = 3  # argument is qeq to a scope identifier
+    UNEXPR = 4  # argument is unexpressed
 
     def __init__(self, start, end, role, mode):
         self.start = start

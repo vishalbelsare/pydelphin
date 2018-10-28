@@ -9,7 +9,7 @@ from delphin.sembase import (
     _Edge,
     _SemanticComponent,
     _XMRS)
-from delphin.util import _connected_components
+from delphin.util import _connected_components, accdict
 
 
 TOP_NODEID   = 0
@@ -95,7 +95,7 @@ class Node(_Node):
         return d
 
 
-class Link(object):
+class Link(_Edge):
     """
     DMRS-style dependency link.
 
@@ -107,24 +107,25 @@ class Link(object):
     Args:
         start: nodeid of the start of the Link
         end: nodeid of the end of the Link
-        rargname (str): role of the argument
+        role (str): role of the argument
         post (str): "post-slash label" indicating the scopal
             relationship between the start and end of the Link;
             possible values are `NEQ`, `EQ`, `HEQ`, and `H`
     Attributes:
         start: nodeid of the start of the Link
         end: nodeid of the end of the Link
-        rargname (str): role of the argument
+        role (str): role of the argument
         post (str): "post-slash label" indicating the scopal
             relationship between the start and end of the Link
     """
 
-    __slots__ = ('start', 'end', 'role', 'post')
+    __slots__ = ('_post')
 
     def __init__(self, start, end, role, post):
         self.start = start
         self.end = end
         self.role = role
+        self.mode = None  # set in 'post' setter
         self.post = post
 
     def __repr__(self):
@@ -152,6 +153,27 @@ class Link(object):
     @rargname.setter
     def rargname(self, value):
         self.role = value
+
+    @property
+    def post(self):
+        return self._post
+
+    @post.setter
+    def post(self, value):
+        if value == EQ_POST and self.role in (BARE_EQ_ROLE, '', None):
+            mode = _Edge.UNSPEC
+        else:
+            try:
+                mode = {
+                    EQ_POST: _Edge.VARARG,
+                    NEQ_POST: _Edge.VARARG,
+                    HEQ_POST: _Edge.LBLARG,
+                    H_POST: _Edge.QEQARG
+                }[value]
+            except KeyError:
+                raise ValueError("Invalid 'post' value: {}".format(value))
+        self.mode == mode
+        self._post = value
 
 
 class DMRS(_SemanticComponent):
@@ -184,8 +206,7 @@ class DMRS(_SemanticComponent):
     >>> d = DMRS([rain], [ltop_link])
     """
 
-    __slots__ = ('nodes', 'links',
-                 '_nodeidx', '_linkstartidx', '_linkendidx')
+    __slots__ = ('nodes', 'links', '_nodeidx', '_linkstartidx', '_linkendidx')
 
     def __init__(self, top=None, index=None, xarg=None,
                  nodes=None, links=None,
@@ -198,9 +219,10 @@ class DMRS(_SemanticComponent):
             links = []
         self.nodes = nodes
         self.links = links
+
         self._nodeidx = {n.nodeid: n for n in nodes}
-        self._linkstartidx = {l.start: l for l in links}
-        self._linkendidx = {l.end: l for l in links}
+        self._linkstartidx = accdict((link.start, link) for link in links)
+        self._linkendidx = accdict((link.end, link) for link in links)
 
     def to_xmrs(self):
         scopes, scopemap = _build_scopes(self)

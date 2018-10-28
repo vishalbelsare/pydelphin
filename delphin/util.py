@@ -4,9 +4,8 @@ from __future__ import absolute_import
 import warnings, codecs, io
 import re
 from datetime import datetime
-
 from collections import deque
-from functools import wraps
+from functools import wraps, reduce
 
 def deprecated(message=None, final_version=None, alternative=None):
     if message is None:
@@ -346,3 +345,11 @@ def detect_encoding(filename, default_encoding='utf-8', comment_char=b';'):
 
     return encoding
 
+
+# functional version of AccumulationDict
+def accdict(iterable):
+    def accumulate(d, pair):
+        k, v = pair
+        d.setdefault(k, []).append(v)
+        return d
+    return reduce(accumulate, iterable, {})
