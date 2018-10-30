@@ -347,9 +347,11 @@ def detect_encoding(filename, default_encoding='utf-8', comment_char=b';'):
 
 
 # functional version of AccumulationDict
-def accdict(iterable):
-    def accumulate(d, pair):
+# result is a plain dictionary
+def accdict(iterable, container=list, accumulate=list.append):
+    def acc(d, pair):
         k, v = pair
-        d.setdefault(k, []).append(v)
+        c = d.setdefault(k, container())
+        accumulate(c, v)
         return d
-    return reduce(accumulate, iterable, {})
+    return reduce(acc, iterable, {})
