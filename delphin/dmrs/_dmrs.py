@@ -242,10 +242,8 @@ class DMRS(_SemanticComponent):
     @classmethod
     def from_xmrs(cls, x):
         nodes = _build_nodes(x)
-        reps = x.scope_representatives()
-        links = _build_links(x, reps)
-        topscope = x.scopemap[x.top]
-        top = reps.get(topscope, [None])[0]
+        links = _build_links(x)
+        top = x.scope_representative(x.top)
         return cls(top,
                    x.index,
                    x.xarg,
@@ -297,7 +295,7 @@ def _build_nodes(x):
             n.lnk, n.surface, n.base))
     return nodes
 
-def _build_links(x, reps):
+def _build_links(x):
     links = []
     scopemap = x.scopemap
     for edge in x.edges:
@@ -305,10 +303,10 @@ def _build_links(x, reps):
         if mode == _Edge.VARARG:
             post = EQ_POST if scopemap[src] == scopemap[tgt] else NEQ_POST
         elif mode == _Edge.LBLARG:
-            tgt = reps[tgt][0]
+            tgt = x.scope_representative(tgt)
             post = HEQ_POST
         elif mode == _Edge.QEQARG:
-            tgt = reps[tgt][0]
+            tgt = x.scope_representative(tgt)
             post = H_POST
         # elif mode == _Edge.UNEXPR:
         #     ...

@@ -42,7 +42,7 @@ def test_basic_DMRS(dogs_bark):
 
 
 def test_DMRS_from_xmrs(dogs_bark):
-    x = _XMRS(10000, 10000, None,
+    x = _XMRS(0, 10000, None,
               dogs_bark['nodes'],
               {0: {10000}, 1: {10001}, 2: {10002}},
               [_Edge(10000, 10002, 'ARG1', _Edge.VARARG),

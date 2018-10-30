@@ -492,7 +492,7 @@ class _SemanticComponent(_LnkMixin):
 class _XMRS(_SemanticComponent):
     """
     Args:
-        top (int): index in conjunctions of top scope
+        top (int): scopeid of top scope
         index (str): nodeid of top predication
         xarg (str): nodeid of external argument
         nodes (list): list of :class:`_Node` objects
@@ -519,53 +519,53 @@ class _XMRS(_SemanticComponent):
             for nodeid in nodeids:
                 self.scopemap[nodeid] = scopeid
         self._nested_scopes = {}
+        self._scope_reps = {}
 
         self.edgemap = {}
+        self.qeqmap = {}
         for edge in self.edges:
             self.edgemap.setdefault(edge.start, []).append(edge)
-
-    def scope_representatives(self):
-        qs = set()  # quantifiers or quantifiees
-        for edge in self.edges:
             if edge.role == 'RSTR':
-                qs.add(edge.start)
-                qs.add(edge.end)
+                self.qeqmap[edge.start] = edge.end
 
-        abstract_predicates = set(node.nodeid for node in self.nodes
-                                  if node.predicate.type == Predicate.ABSTRACT)
+    def scope_representative(self, scopeid):
+        reps = self.scope_representatives(scopeid)
+        if reps:
+            return reps[0]
+        return None
 
-        candidates = {}
-        for scopeid, nodeids in self.scopes.items():
-            if len(nodeids) == 1:
-                candidates[scopeid] = list(nodeids)
+    def scope_representatives(self, scopeid):
+        if scopeid not in self._scope_reps:
+            scope_nodeids = self.scopes[scopeid]
+            if len(scope_nodeids) == 1:
+                self._scope_reps[scopeid] = list(scope_nodeids)
             else:
-                candidates[scopeid] = []
                 nested_scope = self._nested_scope(scopeid)
-                for nodeid in nodeids:
+                candidates = []
+                for nodeid in scope_nodeids:
                     edges = self.edgemap.get(nodeid, [])
-                    if any(end in nested_scope for _, end, _, _ in edges):
-                        continue
-                    candidates[scopeid].append(nodeid)
-
-        for scopeid, nodeids in candidates.items():
-            rank = {}
-            for n in nodeids:
-                if n in qs:
-                    rank[n] = 0
-                elif n in abstract_predicates:
-                    rank[n] = 2
-                else:
-                    rank[n] = 1
-            nodeids.sort(key=lambda n: rank[n])
-
-        return candidates
+                    if all(edge.end not in nested_scope for edge in edges):
+                        candidates.append(nodeid)
+                if len(candidates) > 1:
+                    qs = set(self.qeqmap).union(self.qeqmap.values())
+                    rank = {}
+                    for nodeid in candidates:
+                        node = self.nodemap[nodeid]
+                        if nodeid in qs:
+                            rank[nodeid] = 0
+                        elif node.predicate.type == Predicate.ABSTRACT:
+                            rank[nodeid] = 2
+                        elif nodeid :
+                            rank[nodeid] = 1
+                    candidates.sort(key=lambda n: rank[n])
+                self._scope_reps = candidates
+        return self._scope_reps[scopeid]
 
     def _nested_scope(self, scopeid):
-        if scopeid in self._nested_scopes:
-            return self._nested_scopes[scopeid]
-        self._nested_scopes[scopeid] = ns = set(self.scopes[scopeid])
-        for nodeid in list(ns):
-            for _, end, _, mode in self.edgemap.get(nodeid, []):
-                if mode in (_Edge.LBLARG, _Edge.QEQARG):
-                    ns.update(self._nested_scope(end))
-        return ns
+        if scopeid not in self._nested_scopes:
+            self._nested_scopes[scopeid] = ns = set(self.scopes[scopeid])
+            for nodeid in list(ns):
+                for edge in self.edgemap.get(nodeid, []):
+                    if edge.mode in (_Edge.LBLARG, _Edge.QEQARG):
+                        ns.update(self._nested_scope(edge.end))
+        return self._nested_scopes[scopeid]
