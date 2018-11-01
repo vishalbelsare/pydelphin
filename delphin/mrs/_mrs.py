@@ -8,6 +8,8 @@ from delphin.sembase import (
     _SemanticComponent,
     _XMRS)
 
+from delphin.util import accdict
+
 
 UNKNOWNSORT    = 'u' # when nothing is known about the sort
 HANDLESORT     = 'h' # for scopal relations
@@ -248,7 +250,9 @@ def _build_xmrs_structures(m, scopes, next_nodeid):
     for ep in m.rels:
         nodes.append(ep)
         for role, tgt in ep.args.items():
-            if role not in (IVARG_ROLE, BODY_ROLE, CONSTARG_ROLE):
+            if role == IVARG_ROLE:
+                edges.append(_Edge(ep.nodeid, tgt, role, _Edge.INTARG))
+            elif role not in (BODY_ROLE, CONSTARG_ROLE):
                 if tgt in scopes:
                     mode = _Edge.LBLARG
                 elif tgt in m._hcidx:
@@ -273,7 +277,9 @@ def _build_xmrs_structures(m, scopes, next_nodeid):
 
 def _build_varmaps(x, vgen):
     lblmap = {}
-    ivmap = {}
+    # use any explicit intrinsic variables
+    ivmap = dict(x.ivmap)
+    # for the rest, build new ones
     for scopeid, nodeids in x.scopes.items():
         label = lblmap.get(scopeid)
         if label is None:
@@ -291,11 +297,12 @@ def _build_varmaps(x, vgen):
 def _build_structures(x, lblmap, ivmap, vgen):
     rels = []
     hcons = []
+    nodeedges = accdict((edge.start, edge) for edge in x.edges)
     for node in x.nodes:
         args = {}
         if node.type is not None:
             args[IVARG_ROLE] = ivmap[node.nodeid]
-        for edge in x.edgemap.get(node.nodeid, []):
+        for edge in nodeedges.get(node.nodeid, []):
             end, role, mode = edge.end, edge.role, edge.mode
             if mode == _Edge.VARARG:
                 args[role] = ivmap[end]

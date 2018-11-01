@@ -454,16 +454,25 @@ class _Edge(object):
 
     # edge "modes"
     UNSPEC = 0  # mode is unspecified
-    VARARG = 1  # regular variable argument
-    LBLARG = 2  # argument is a scope identifier
-    QEQARG = 3  # argument is qeq to a scope identifier
-    UNEXPR = 4  # argument is unexpressed
+    INTARG = 1  # intrinsic argument ('end' is variable)
+    VARARG = 2  # regular variable argument
+    LBLARG = 3  # argument is a scope identifier
+    QEQARG = 4  # argument is qeq to a scope identifier
+    UNEXPR = 5  # argument is unexpressed ('end' is variable)
 
     def __init__(self, start, end, role, mode):
         self.start = start
         self.end = end
         self.role = role
         self.mode = mode
+
+    def __repr__(self):
+        return '<{} object ({} -{}-> {}) at {}>'.format(
+            self.__class__.__name__,
+            self.start,
+            self.role,
+            self.end,
+            id(self))
 
 
 class _IndividualConstraint(object):
@@ -521,12 +530,18 @@ class _XMRS(_SemanticComponent):
         self._nested_scopes = {}
         self._scope_reps = {}
 
-        self.edgemap = {}
-        self.qeqmap = {}
+        self.edgemap = {node.nodeid: {} for node in nodes}
+        self.quantifiermap = {}
+        self.ivmap = {}
         for edge in self.edges:
-            self.edgemap.setdefault(edge.start, []).append(edge)
+            self.edgemap[edge.start][edge.role] = edge
             if edge.role == 'RSTR':
-                self.qeqmap[edge.start] = edge.end
+                self.quantifiermap[edge.start] = edge.end
+            elif edge.mode == _Edge.INTARG:
+                self.ivmap[edge.start] = edge.end
+
+    def is_quantifier(self, nodeid):
+        return nodeid in self.quantifiermap
 
     def scope_representative(self, scopeid):
         reps = self.scope_representatives(scopeid)
@@ -543,7 +558,8 @@ class _XMRS(_SemanticComponent):
                 nested_scope = self._nested_scope(scopeid)
                 candidates = []
                 for nodeid in scope_nodeids:
-                    edges = self.edgemap.get(nodeid, [])
+                    edges = [edge for edge in self.edgemap.get(nodeid, [])
+                             if edge.mode == _Edge.VARARG]
                     if all(edge.end not in nested_scope for edge in edges):
                         candidates.append(nodeid)
                 if len(candidates) > 1:

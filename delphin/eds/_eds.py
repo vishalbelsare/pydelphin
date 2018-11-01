@@ -1,4 +1,6 @@
 
+from itertools import count
+
 from delphin.sembase import (
     Lnk,
     _LnkMixin,
@@ -8,6 +10,9 @@ from delphin.sembase import (
     _SemanticComponent,
     _XMRS)
 from delphin.util import _connected_components, accdict
+
+
+PREDICATE_MODIFIER_ROLE = 'ARG1'
 
 
 class Node(_Node):
@@ -131,27 +136,13 @@ class EDS(_SemanticComponent):
         top = xmrs.scope_representative(xmrs.top)
         nodes = _build_nodes(xmrs)
         edges = _build_edges(xmrs)
-
-        # # if requested, find additional dependencies not captured already
-        # if predicate_modifiers is True:
-        #     func = non_argument_modifiers(role='ARG1', only_connecting=True)
-        #     addl_deps = func(xmrs, deps)
-        # elif predicate_modifiers is False or predicate_modifiers is None:
-        #     addl_deps = {}
-        # elif hasattr(predicate_modifiers, '__call__'):
-        #     addl_deps = predicate_modifiers(xmrs, deps)
-        # else:
-        #     raise TypeError('a boolean or callable is required')
-
-        # for nid, deplist in addl_deps.items():
-        #     deps.setdefault(nid, []).extend(deplist)
-
-        # ids = _unique_ids(eps, deps)
-        # root = _find_root(xmrs)
-        # if root is not None:
-        #     root = ids[root]
-        # edges = [(ids[a], rarg, ids[b]) for a, deplist in deps.items()
-        #                                 for rarg, b in deplist]
+        if predicate_modifiers:
+            edges.extend(_predicate_modifiers(xmrs, edges))
+        idmap = _unique_id_map(xmrs, nodes, edges)
+        top = idmap[top]
+        for edge in edges:
+            edge.start = idmap[edge.start]
+            edge.end = idmap[edge.end]
 
         return cls(top=top, nodes=nodes, edges=edges)
 
@@ -163,62 +154,6 @@ class EDS(_SemanticComponent):
             all(a == b for a, b in zip(self.nodes(), other.nodes())) and
             self._edges == other._edges
         )
-
-
-def non_argument_modifiers(role='ARG1', only_connecting=True):
-    """
-    Return a function that finds non-argument modifier dependencies.
-
-    Args:
-        role (str): the role that is assigned to the dependency
-        only_connecting (bool): if `True`, only return dependencies
-            that connect separate components in the basic dependencies;
-            if `False`, all non-argument modifier dependencies are
-            included
-
-    Returns:
-        a function with signature `func(xmrs, deps)` that returns a
-        mapping of non-argument modifier dependencies
-
-    Examples:
-        The default function behaves like the LKB:
-
-        >>> func = non_argument_modifiers()
-
-        A variation is similar to DMRS's MOD/EQ links:
-
-        >>> func = non_argument_modifiers(role="MOD", only_connecting=False)
-    """
-    def func(xmrs, edges):
-        components = _connected_components(
-            [node.nodeid for node in xmrs.nodes],
-            [(edge.start, edge.end) for edge in edges])
-
-        ccmap = {}
-        for i, component in enumerate(components):
-            for n in component:
-                ccmap[n] = i
-
-        addl = {}
-        if not only_connecting or len(components) > 1:
-            lsh = xmrs.labelset_heads
-            lblheads = {v: lsh(v) for v, vd in xmrs._vars.items()
-                        if 'LBL' in vd['refs']}
-            for heads in lblheads.values():
-                if len(heads) > 1:
-                    first = heads[0]
-                    joined = set([ccmap[first]])
-                    for other in heads[1:]:
-                        occ = ccmap[other]
-                        srt = var_sort(xmrs.args(other).get(role, 'u0'))
-                        needs_edge = not only_connecting or occ not in joined
-                        edge_available = srt == 'u'
-                        if needs_edge and edge_available:
-                            addl.setdefault(other, []).append((role, first))
-                            joined.add(occ)
-        return addl
-
-    return func
 
 
 def _build_nodes(x):
@@ -234,7 +169,9 @@ def _build_edges(x):
     edges = []
     for edge in x.edges:
         src, tgt, role, mode = edge.start, edge.end, edge.role, edge.mode
-        if mode in (_Edge.LBLARG, _Edge.QEQARG):
+        if mode == _Edge.INTARG:
+            continue
+        elif mode in (_Edge.LBLARG, _Edge.QEQARG):
             tgt = x.scope_representative(tgt)
             if role == 'RSTR':
                 role = 'BV'
@@ -247,3 +184,58 @@ def _build_edges(x):
                              .format(src, tgt, role, mode))
         edges.append(Edge(src, tgt, role))
     return edges
+
+
+def _predicate_modifiers(xmrs, edges):
+    components = _connected_components(
+        [node.nodeid for node in xmrs.nodes],
+        [(edge.start, edge.end) for edge in edges])
+    pm_edges = []
+    if len(components) > 1:
+        ccmap = {}
+        for i, component in enumerate(components):
+            for n in component:
+                ccmap[n] = i
+        for scopeid in xmrs.scopes:
+            reps = xmrs.scope_representatives(scopeid)
+            if len(reps) > 1:
+                pm_edges.extend(_pm_edges(xmrs, reps[0], reps[1:], ccmap))
+    return pm_edges
+
+
+def _pm_edges(xmrs, first, rest, ccmap):
+    edges = []
+    joined = set([ccmap[first]])
+    for other in rest:
+        other_component = ccmap[other]
+        other_edge = x.edgemap[other].get(PREDICATE_MODIFIER_ROLE)
+        if other_component not in joined and other_edge is not None:
+            other_target = xmrs.nodemap[other_edge.end]
+            if other_target.type == 'u':
+                edges.append(Edge(other, PREDICATE_MODIFIER_ROLE, first))
+                joined.add(occ)
+    return edges
+
+
+def _unique_id_map(xmrs, nodes, edges):
+    new_ids = ('_{}'.format(i) for i in count(start=1))
+    idmap = {}
+    used = {}
+    for node in nodes:
+        nid = node.nodeid
+        iv = xmrs.ivmap.get(nid)
+        if iv is None or xmrs.is_quantifier(nid):
+            iv = next(new_ids)
+        idmap[nid] = iv
+        used.setdefault(iv, set()).add(nid)
+    # If more than one node shares the intrinsic variable, pick out a
+    # winner similar to scope representatives; the others get new ids.
+    # Note that this should only happen with ill-formed MRSs.
+    for _id, nids in used.items():
+        if len(nids) > 1:
+            nids = sorted(nids, key=lambda n: any(edge.end in nids
+                                                  for edge in edges
+                                                  if edge.start == n))
+            for nid in nids[1:]:
+                idmap[nid] = next(new_ids)
+    return idmap
