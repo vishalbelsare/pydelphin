@@ -155,6 +155,13 @@ class EDS(_SemanticComponent):
             self._edges == other._edges
         )
 
+    def node(self, nodeid):
+        return self._nodeidx[nodeid]
+
+    def edges_from(self, nodeid):
+        self._nodeidx[nodeid]  # check if node exists in EDS at all
+        return self._edgestartidx.get(nodeid, [])
+
 
 def _build_nodes(x):
     nodes = []

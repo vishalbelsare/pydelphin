@@ -46,7 +46,7 @@ def dump(ds, destination, properties=True, indent=False, encoding='utf-8'):
 
     Args:
         destination: filename or file object
-        ds: iterator of :class:`~delphin.mrs.dmrs.DMRS` objects to
+        ds: iterator of :class:`~delphin.dmrs.DMRS` objects to
             serialize
         properties: if `True`, encode variable properties
         indent: if `True`, adaptively indent; if `False` or `None`,
@@ -72,7 +72,7 @@ def dumps(ds, properties=True, indent=False):
     Serialize DMRS objects to a DMRS-JSON string.
 
     Args:
-        ds: iterator of :class:`~delphin.mrs.dmrs.DMRS` objects to
+        ds: iterator of :class:`~delphin.dmrs.DMRS` objects to
             serialize
         properties: if `True`, encode variable properties
         indent: if `True`, adaptively indent; if `False` or `None`,
