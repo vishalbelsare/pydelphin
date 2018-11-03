@@ -13,29 +13,46 @@ Deserialization is not provided.
 from __future__ import print_function
 
 import io
+import re
 
 from delphin.sembase import Lnk, Predicate
 from delphin.dmrs import DMRS, Node, Link
-from delphin.mrs.config import EQ_POST, CVARSORT, CONSTARG_ROLE
+from delphin.dmrs._dmrs import EQ_POST, CVARSORT
+from delphin.util import safe_int, LookaheadIterator
 
 
 ##############################################################################
 ##############################################################################
 # Pickle-API methods
 
+def load(source):
+    """
+    Deserialize SimpleDMRS from a file (handle or filename)
 
-# def load(fh, single=False):
-#     ms = deserialize(fh)
-#     if single:
-#         ms = next(ms)
-#     return ms
+    Args:
+        source (str, file): input filename or file object
+    Returns:
+        a list of DMRS objects
+    """
+    if hasattr(source, 'read'):
+        ds = _decode(source)
+    else:
+        with open(source) as fh:
+            ds = _decode(fh)
+    return list(ds)
 
 
-# def loads(s, single=False, encoding='utf-8'):
-#     ms = deserialize(BytesIO(bytes(s, encoding=encoding)))
-#     if single:
-#         ms = next(ms)
-#     return ms
+def loads(s, single=False, encoding='utf-8'):
+    """
+    Deserialize SimpleDMRS string representations
+
+    Args:
+        s (str): a SimpleDMRS string
+    Returns:
+        a list of DMRS objects
+    """
+    ds = _decode(s.splitlines())
+    return list(ds)
 
 
 def dump(ds, destination, properties=True, indent=False, encoding='utf-8'):
@@ -74,6 +91,14 @@ def dumps(ds, properties=True, indent=False):
     return _encode(ds, properties=properties, indent=indent)
 
 
+def decode(s):
+    """
+    Deserialize a DMRS object from a SimpleDMRS string.
+    """
+    tokens = LookaheadIterator(_lex(s.splitlines()))
+    return _decode_dmrs(tokens)
+
+
 def encode(d, properties=True, indent=False):
     """
     Serialize a DMRS object to a SimpleDMRS string.
@@ -93,13 +118,160 @@ def encode(d, properties=True, indent=False):
 ##############################################################################
 # Decoding
 
-# tokenizer = re.compile(r'("[^"\\]*(?:\\.[^"\\]*)*"'
-#                        r'|[^\s:#@\[\]<>"]+'
-#                        r'|[:#@\[\]<>])')
+_simpledmrs_lex_re = re.compile(
+    r'''# regex-pattern                      gid  description
+    (\{)                                   #   1  graph start
+    |(\})                                  #   2  graph end
+    |(\[)                                  #   3  properties start
+    |(\])                                  #   4  properties end
+    |<(-?\d+:-?\d+)>                       #   5  cfrom:cto lnk values
+    |\("([^"\\]*(?:\\.[^"\\]*)*)"\)        #   6  carg ("strings")
+    |(:)                                   #   7  role start
+    |(\/)                                  #   8  role/post delimiter
+    |(=)                                   #   9  prop=val delimiter
+    |(;)                                   #  10  statement terminator
+    |(--|->)                               #  11  edge arrows
+    |([^\s"'()\/:;<=>[\]{}]+)              #  12  identifiers and values
+    |([^\s])                               #  13  unexpected
+    ''',
+    flags=re.VERBOSE|re.IGNORECASE)
 
-# def deserialize(fh):
-#     """deserialize a SimpleDmrs-encoded DMRS structure."""
-#     raise NotImplementedError
+
+def _lex(lineiter):
+    """
+    Lex the input string according to _simpledmrs_lex_re.
+
+    Yields
+        (gid, token, line_number)
+    """
+    lines = enumerate(lineiter, 1)
+    lineno = pos = 0
+    try:
+        for lineno, line in lines:
+            matches = _simpledmrs_lex_re.finditer(line)
+            for m in matches:
+                gid = m.lastindex
+                if gid == 13:
+                    raise ValueError('unexpected input: ' + line[pos:])
+                else:
+                    token = m.group(gid)
+                    yield (gid, token, lineno)
+    except StopIteration:
+        pass
+
+
+def _decode(lineiter):
+    tokens = LookaheadIterator(_lex(lineiter))
+    try:
+        while tokens.peek():
+            yield _decode_dmrs(tokens)
+    except StopIteration:
+        pass
+
+
+def _decode_dmrs(tokens):
+    top = index = xarg = lnk = surface = identifier = None
+    assert tokens.next()[1] == 'dmrs'
+    if tokens.peek()[0] == 12:
+        identifier = safe_int(tokens.next()[1])
+    assert tokens.next()[0] == 1
+    gid = tokens.next()[0]
+    if gid == 3:  # graph properties
+        lnk = _decode_lnk(tokens)
+        surface = _decode_carg(tokens)
+        graphprops = dict(_decode_properties(tokens))
+        if 'top' in graphprops:
+            top = safe_int(graphprops.get('top'))
+        if 'index' in graphprops:
+            index = safe_int(graphprops.get('index'))
+        if 'xarg' in graphprops:
+            xarg = safe_int(graphprops.get('xarg'))
+        gid, token, lineno = tokens.next()
+    nodes = []
+    links = []
+    while gid == 12:
+        nextgid = tokens.peek()[0]
+        assert nextgid in (3, 7)
+        nodeid = safe_int(token)
+        if nextgid == 3:
+            nodes.append(_decode_node(nodeid, tokens))
+        else:
+            links.append(_decode_edge(nodeid, tokens))
+        gid, token, lineno = tokens.next()
+        # node or edge?
+    assert gid == 2
+    return DMRS(top=top,
+                index=index,
+                xarg=xarg,
+                nodes=nodes,
+                links=links,
+                lnk=lnk,
+                surface=surface,
+                identifier=identifier)
+
+
+def _decode_lnk(tokens):
+    lnk = None
+    if tokens.peek()[0] == 5:
+        cfrom, cto = tokens.next()[1].split(':')
+        lnk = Lnk.charspan(cfrom, cto)
+    return lnk
+
+
+def _decode_carg(tokens):
+    carg = None
+    if tokens.peek()[0] == 6:
+        carg = tokens.next()[1]
+    return carg
+
+
+def _decode_properties(tokens):
+    props = []
+    gid, token, lineno = tokens.next()
+    if gid == 12:
+        nextgid = tokens.peek()[0]
+        # if not followed by =, it's the node type
+        if nextgid in (4, 12):
+            props.append((CVARSORT, token))
+            gid, token, lineno = tokens.next()
+        while gid == 12:
+            prop = token
+            assert tokens.next()[0] == 9
+            gid, val, lineno = tokens.next()
+            assert gid == 12
+            props.append((prop, val))
+            gid, token, lineno = tokens.next()
+    assert gid == 4
+    return props
+
+
+def _decode_node(nodeid, tokens):
+    assert tokens.next()[0] == 3
+    gid, token, lineno = tokens.next()
+    assert gid == 12
+    predicate = Predicate.surface_or_abstract(token)
+    lnk = _decode_lnk(tokens)
+    carg = _decode_carg(tokens)
+    sortinfo = _decode_properties(tokens)
+    if not sortinfo:
+        sortinfo = None
+    assert tokens.next()[0] == 10
+    return Node(nodeid, predicate, sortinfo=sortinfo, carg=carg, lnk=lnk)
+
+
+def _decode_edge(start, tokens):
+    assert tokens.next()[0] == 7
+    gid, role, lineno = tokens.next()
+    assert gid == 12
+    assert tokens.next()[0] == 8
+    gid, post, lineno = tokens.next()
+    assert gid == 12
+    assert tokens.next()[0] == 11
+    gid, end, lineno = tokens.next()
+    assert gid == 12
+    assert tokens.next()[0] == 10
+    return Link(start, safe_int(end), role, post)
+
 
 ##############################################################################
 ##############################################################################
@@ -128,22 +300,29 @@ def _encode_dmrs(d, properties, indent):
     else:
         delim = '\n' + ' ' * indent
         end = '\n}'
+    if d.identifier is None:
+        start = 'dmrs {'
+    else:
+        start = 'dmrs {} {{'.format(d.identifier)
     attrs = _encode_attrs(d)
     nodes = [_encode_node(node, properties) for node in d.nodes]
     links = [_encode_link(link) for link in d.links]
-    return delim.join(['dmrs {'] + attrs + nodes + links) + end
+    return delim.join([start] + attrs + nodes + links) + end
 
 
 def _encode_attrs(d):
     attrs = []
+    if d.lnk is not None:
+        attrs.append(str(d.lnk))
+    if d.surface is not None:
+        # join without space to lnk, if any
+        attrs = [''.join(attrs + ['("{}")'.format(d.surface)])]
     if d.top is not None:
         attrs.append('top={}'.format(d.top))
     if d.index is not None:
         attrs.append('index={}'.format(d.index))
-    if d.lnk is not None:
-        attrs.append('lnk={}'.format(str(d.lnk)))
-    if d.surface is not None:
-        attrs.append('surface="{}"'.format(d.surface))
+    if d.xarg is not None:
+        attrs.append('xarg={}'.format(d.xarg))
     if attrs:
         attrs = ['[{}]'.format(' '.join(attrs))]
     return attrs
@@ -160,7 +339,7 @@ def _encode_node(node, properties):
 
 def _encode_sortinfo(node, properties):
     sortinfo = []
-    if node.cvarsort is not None:
+    if node.cvarsort is not None and node.cvarsort != 'u':
         sortinfo.append(node.cvarsort)
     if properties and node.properties:
         sortinfo.extend('{}={}'.format(k, v)
