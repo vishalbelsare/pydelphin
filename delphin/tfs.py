@@ -233,8 +233,8 @@ class TypeHierarchy(object):
         for parent in parents:
             self._hier[parent][1].append(typename)
 
-    # def __getitem__(self, typename):
-    #     return self._hier[typename]
+    def __getitem__(self, typename):
+        return list(self._hier[typename][0])
 
     def ancestors(self, typename):
         """Return the ancestor types of *typename*."""
