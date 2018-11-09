@@ -1,22 +1,8 @@
 
+import pytest
+
 from delphin import semi
 
-def test_variables(tmpdir):
-    p = tmpdir.join('a.smi')
-    p.write('variables:\n'
-            '  u.\n'
-            '  i < u.\n'
-            '  e < i : PERF bool, TENSE tense.')
-    s = semi.load(str(p))
-    assert len(s.variables) == 3
-    assert all([v in s.variables for v in 'uie'])
-    assert len(s.variables['u']['parents']) == 1
-    assert len(s.variables['i']['parents']) == 1
-    assert len(s.variables['e']['parents']) == 1
-    assert s.variables['u']['properties'] == []
-    assert s.variables['i']['properties'] == []
-    assert s.variables['e']['properties'] == [
-        ['PERF', 'bool'], ['TENSE', 'tense']]
 
 def test_properties(tmpdir):
     p = tmpdir.join('a.smi')
@@ -27,24 +13,64 @@ def test_properties(tmpdir):
     s = semi.load(str(p))
     assert len(s.properties) == 3
     assert all([x in s.properties for x in ('bool', '+', '-')])
-    assert len(s.properties['bool']['parents']) == 1
-    assert len(s.properties['+']['parents']) == 1
-    assert len(s.properties['-']['parents']) == 1
+    assert s.type_hierarchy.subsumes('bool', '+')
+    assert not s.type_hierarchy.compatible('+', '-')
+
+
+def test_variables(tmpdir):
+    p = tmpdir.join('a.smi')
+    p.write('variables:\n'
+            '  u.\n'
+            '  i < u.\n'
+            '  e < i : PERF bool, TENSE tense.\n'
+            '  p < u.\n'
+            '  x < i & p.\n'
+            'properties:\n'
+            '  bool.\n'
+            '  tense.\n')
+    s = semi.load(str(p))
+    assert len(s.variables) == 5
+    assert all([v in s.variables for v in 'uiepx'])
+    assert s.variables['u'] == []
+    assert s.variables['i'] == []
+    assert s.variables['e'] == [('PERF', 'bool'), ('TENSE', 'tense')]
+    assert s.variables['p'] == []
+    assert s.variables['x'] == []
+    assert all(s.type_hierarchy.subsumes('u', v) for v in 'iepx')
+    assert not s.type_hierarchy.compatible('e', 'x')
+
 
 def test_roles(tmpdir):
     p = tmpdir.join('a.smi')
-    p.write('roles:\n'
+    p.write('variables:\n'
+            '  i.\n'
+            'roles:\n'
             '  ARG0 : i.\n'
             '  CARG : string.')
     s = semi.load(str(p))
     assert len(s.roles) == 2
     assert all([r in s.roles for r in ('ARG0', 'CARG')])
-    assert s.roles['ARG0']['value'] == 'i'
-    assert s.roles['CARG']['value'] == 'string'
+    assert s.roles['ARG0'] == 'i'
+    assert s.roles['CARG'] == 'string'
+
 
 def test_predicates(tmpdir):
     p = tmpdir.join('a.smi')
-    p.write('predicates:\n'
+    p.write('variables:\n'
+            '  u.\n'
+            '  i < u.\n'
+            '  p < u.\n'
+            '  e < i.\n'
+            '  x < i : IND bool.\n'
+            'properties:\n'
+            '  bool.\n'
+            '  + < bool.\n'
+            'roles:\n'
+            '  ARG0 : i.\n'
+            '  ARG1 : u.\n'
+            '  ARG2 : u.\n'
+            '  ARG3 : u.\n'
+            'predicates:\n'
             '  existential_q.\n'
             '  _the_q < existential_q.\n'
             '  _predicate_n_1 : ARG0 x { IND + }.\n'
@@ -54,14 +80,15 @@ def test_predicates(tmpdir):
     s = semi.load(str(p))
     assert set(s.predicates) == {'existential_q', '_the_q', '_predicate_n_1',
                                  '_predicate_v_of', '_predominant_a_1'}
-    assert s.predicates['_the_q']['parents'] == ['existential_q']
-    assert s.predicates['_predicate_n_1']['parents'] == ['*top*']
-    assert s.predicates['_predicate_v_of']['parents'] == ['*top*']
-    assert s.predicates['_predominant_a_1']['parents'] == ['*top*']
-    assert len(s.predicates['_the_q']['synopses']) == 0
-    assert len(s.predicates['_predicate_n_1']['synopses']) == 1
-    assert len(s.predicates['_predicate_v_of']['synopses']) == 1
-    assert len(s.predicates['_predominant_a_1']['synopses']) == 2
+    assert s.type_hierarchy['_the_q'] == ['existential_q']
+    assert s.type_hierarchy['_predicate_n_1'] == ['*top*']
+    assert s.type_hierarchy['_predicate_v_of'] == ['*top*']
+    assert s.type_hierarchy['_predominant_a_1'] == ['*top*']
+    assert len(s.predicates['_the_q']) == 0
+    assert len(s.predicates['_predicate_n_1']) == 1
+    assert len(s.predicates['_predicate_v_of']) == 1
+    assert len(s.predicates['_predominant_a_1']) == 2
+
 
 def test_include(tmpdir):
     a = tmpdir.join('a.smi')
@@ -85,21 +112,30 @@ def test_include(tmpdir):
     d.write('variables:\n'
             '  u.\n'
             '  i < u.\n'
+            '  p < u.\n'
+            '  h < p.\n'
+            '  e < i.\n'
+            '  x < i.\n'
             'properties:\n'
             '  tense.\n'
             '  pres < tense.\n'
             'roles:\n'
-            '  ARG0 : i.')
+            '  ARG0 : i.\n'
+            '  ARG1 : u.\n'
+            '  ARG2 : u.\n'
+            '  RSTR : h.\n'
+            '  BODY : h.')
     s = semi.load(str(a))
-    assert len(s.variables) == 2
+    assert len(s.variables) == 6
     assert len(s.properties) == 2
-    assert len(s.roles) == 1
+    assert len(s.roles) == 5
     assert 'abstract_q' in s.predicates
     assert 'existential_q' in s.predicates
     assert 'can_able' in s.predicates
     assert '_able_a_1' in s.predicates
-    assert 'can_able' in s.predicates['_able_a_1']['parents']
-    assert len(s.predicates['_able_a_1']['synopses']) == 2
+    assert 'can_able' in s.type_hierarchy['_able_a_1']
+    assert len(s.predicates['_able_a_1']) == 2
+
 
 def test_comments(tmpdir):
     p = tmpdir.join('a.smi')
@@ -109,23 +145,78 @@ def test_comments(tmpdir):
             '  u.\n'
             '  ; x < u.\n'
             '  i < u.\n'
-            '  e < i : PERF bool, TENSE tense.')
+            '  e < i.\n')
     s = semi.load(str(p))
     assert len(s.variables) == 3
     assert 'x' not in s.variables
+
+
+def test_consistency():
+    from delphin import tfs
+    # invalid hierarchy
+    with pytest.raises(tfs.TypeHierarchyError):
+        semi.SemI(variables={'u': {'parents': []},
+                             'i': {'parents': ['u', 'i']}})
+    # undeclared variable
+    with pytest.raises(semi.SemIError):
+        semi.SemI(roles={'ARG0': {'value': 'i'}})
+    # undeclared role
+    with pytest.raises(semi.SemIError):
+        semi.SemI(
+            variables={'u': {'parents': []},
+                       'i': {'parents': ['u']}},
+            predicates={
+                '_predicate_n_1': {
+                    'parents': [],
+                    'synopses': [[{'role': 'ARG0', 'value': 'i'}]]}})
+    # undeclared properties
+    with pytest.raises(semi.SemIError):
+        semi.SemI(
+            variables={'u': {'parents': []},
+                       'i': {'parents': ['u']}},
+            roles={'ARG0': {'value': 'i'}},
+            predicates={
+                '_predicate_n_1': {
+                    'parents': [],
+                    'synopses': [
+                        [{'role': 'ARG0',
+                          'value': 'i',
+                          'properties': [['IND', '+']]}]]}})
+    # undeclared property value
+    with pytest.raises(semi.SemIError):
+        semi.SemI(
+            variables={'u': {'parents': []},
+                       'i': {'parents': ['u'],
+                             'properties': [['IND', 'bool']]}},
+            roles={'ARG0': {'value': 'i'}},
+            properties={'bool': {'parents': []}},
+            predicates={
+                '_predicate_n_1': {
+                    'parents': [],
+                    'synopses': [
+                        [{'role': 'ARG0',
+                          'value': 'i',
+                          'properties': [['IND', '+']]}]]}})
+
 
 def test_to_dict(tmpdir):
     p = tmpdir.join('a.smi')
     p.write('variables:\n'
             '  u.\n'
             '  i < u.\n'
+            '  p < u.\n'
             '  e < i : TENSE tense.\n'
+            '  x < i & p : IND bool.\n'
             'properties:\n'
             '  tense.\n'
             '  pres < tense.\n'
+            '  bool.\n'
+            '  + < bool.\n'
             'roles:\n'
             '  ARG0 : i.\n'
             '  ARG1 : u.\n'
+            '  ARG2 : u.\n'
+            '  ARG3 : u.\n'
             'predicates:\n'
             '  existential_q.\n'
             '  _the_q < existential_q.\n'
@@ -136,21 +227,27 @@ def test_to_dict(tmpdir):
     s = semi.load(str(p))
     assert s.to_dict() == {
         'variables': {
-            'u': {'parents': ['*top*'], 'properties': []},
+            'u': {'parents': [], 'properties': []},
             'i': {'parents': ['u'], 'properties': []},
-            'e': {'parents': ['i'], 'properties': [['TENSE', 'tense']]}
+            'p': {'parents': ['u'], 'properties': []},
+            'e': {'parents': ['i'], 'properties': [['TENSE', 'tense']]},
+            'x': {'parents': ['i', 'p'], 'properties': [['IND', 'bool']]}
         },
         'properties': {
-            'tense': {'parents': ['*top*']},
-            'pres': {'parents': ['tense']}
+            'tense': {'parents': []},
+            'pres': {'parents': ['tense']},
+            'bool': {'parents': []},
+            '+': {'parents': ['bool']}
         },
         'roles': {
             'ARG0': {'value': 'i'},
-            'ARG1': {'value': 'u'}
+            'ARG1': {'value': 'u'},
+            'ARG2': {'value': 'u'},
+            'ARG3': {'value': 'u'}
         },
         'predicates': {
             'existential_q': {
-                'parents': ['*top*'],
+                'parents': [],
                 'synopses': []
             },
             '_the_q': {
@@ -158,14 +255,14 @@ def test_to_dict(tmpdir):
                 'synopses': []
             },
             '_predicate_n_1': {
-                'parents': ['*top*'],
+                'parents': [],
                 'synopses': [
                     [{'role': 'ARG0', 'value': 'x',
                       'properties': [['IND', '+']], 'optional': False}]
                 ]
             },
             '_predicate_v_of': {
-                'parents': ['*top*'],
+                'parents': [],
                 'synopses': [
                     [
                         {'role': 'ARG0', 'value': 'e',
@@ -180,7 +277,7 @@ def test_to_dict(tmpdir):
                 ]
             },
             '_predominant_a_1': {
-                'parents': ['*top*'],
+                'parents': [],
                 'synopses': [
                     [
                         {'role': 'ARG0', 'value': 'e',
@@ -199,18 +296,25 @@ def test_to_dict(tmpdir):
         }
     }
 
+
 def test_from_dict(tmpdir):
     p = tmpdir.join('a.smi')
     p.write('variables:\n'
             '  u.\n'
             '  i < u.\n'
+            '  p < u.\n'
             '  e < i : TENSE tense.\n'
+            '  x < i & p : IND bool.\n'
             'properties:\n'
             '  tense.\n'
             '  pres < tense.\n'
+            '  bool.\n'
+            '  + < bool.\n'
             'roles:\n'
             '  ARG0 : i.\n'
             '  ARG1 : u.\n'
+            '  ARG2 : u.\n'
+            '  ARG3 : u.\n'
             'predicates:\n'
             '  existential_q.\n'
             '  _the_q < existential_q.\n'
@@ -221,21 +325,27 @@ def test_from_dict(tmpdir):
     s1 = semi.load(str(p))
     s2 = semi.SemI.from_dict({
         'variables': {
-            'u': {'parents': ['*top*'], 'properties': []},
+            'u': {'parents': [], 'properties': []},
             'i': {'parents': ['u'], 'properties': []},
-            'e': {'parents': ['i'], 'properties': [('TENSE', 'tense')]}
+            'p': {'parents': ['u'], 'properties': []},
+            'e': {'parents': ['i'], 'properties': [('TENSE', 'tense')]},
+            'x': {'parents': ['i', 'p'], 'properties': [['IND', 'bool']]}
         },
         'properties': {
             'tense': {'parents': []},
-            'pres': {'parents': ['tense']}
+            'pres': {'parents': ['tense']},
+            'bool': {'parents': []},
+            '+': {'parents': ['bool']}
         },
         'roles': {
             'ARG0': {'value': 'i'},
-            'ARG1': {'value': 'u'}
+            'ARG1': {'value': 'u'},
+            'ARG2': {'value': 'u'},
+            'ARG3': {'value': 'u'}
         },
         'predicates': {
             'existential_q': {
-                'parents': ['*top*'],
+                'parents': [],
                 'synopses': []
             },
             '_the_q': {
@@ -278,3 +388,4 @@ def test_from_dict(tmpdir):
     assert s1.properties == s2.properties
     assert s1.roles == s2.roles
     assert s1.predicates == s2.predicates
+    assert s1.type_hierarchy == s2.type_hierarchy
