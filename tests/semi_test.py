@@ -1,4 +1,6 @@
 
+from __future__ import unicode_literals
+
 import pytest
 
 from delphin import semi
@@ -181,7 +183,7 @@ def test_consistency():
                     'synopses': [
                         [{'role': 'ARG0',
                           'value': 'i',
-                          'properties': [['IND', '+']]}]]}})
+                          'properties': {'IND': '+'}}]]}})
     # undeclared property value
     with pytest.raises(semi.SemIError):
         semi.SemI(
@@ -196,7 +198,7 @@ def test_consistency():
                     'synopses': [
                         [{'role': 'ARG0',
                           'value': 'i',
-                          'properties': [['IND', '+']]}]]}})
+                          'properties': {'IND': '+'}}]]}})
 
 
 def test_to_dict(tmpdir):
@@ -225,75 +227,77 @@ def test_to_dict(tmpdir):
             '  _predominant_a_1 : ARG0 e, ARG1 e.\n'
             '  _predominant_a_1 : ARG0 e, ARG1 p.')
     s = semi.load(str(p))
-    assert s.to_dict() == {
-        'variables': {
-            'u': {'parents': [], 'properties': []},
-            'i': {'parents': ['u'], 'properties': []},
-            'p': {'parents': ['u'], 'properties': []},
-            'e': {'parents': ['i'], 'properties': [['TENSE', 'tense']]},
-            'x': {'parents': ['i', 'p'], 'properties': [['IND', 'bool']]}
-        },
-        'properties': {
-            'tense': {'parents': []},
-            'pres': {'parents': ['tense']},
-            'bool': {'parents': []},
-            '+': {'parents': ['bool']}
-        },
-        'roles': {
-            'ARG0': {'value': 'i'},
-            'ARG1': {'value': 'u'},
-            'ARG2': {'value': 'u'},
-            'ARG3': {'value': 'u'}
-        },
-        'predicates': {
-            'existential_q': {
-                'parents': [],
-                'synopses': []
-            },
-            '_the_q': {
-                'parents': ['existential_q'],
-                'synopses': []
-            },
-            '_predicate_n_1': {
-                'parents': [],
-                'synopses': [
-                    [{'role': 'ARG0', 'value': 'x',
-                      'properties': [['IND', '+']], 'optional': False}]
-                ]
-            },
-            '_predicate_v_of': {
-                'parents': [],
-                'synopses': [
-                    [
-                        {'role': 'ARG0', 'value': 'e',
-                         'properties': [], 'optional': False},
-                        {'role': 'ARG1', 'value': 'i',
-                         'properties': [], 'optional': False},
-                        {'role': 'ARG2', 'value': 'p',
-                         'properties': [], 'optional': False},
-                        {'role': 'ARG3', 'value': 'i',
-                         'properties': [], 'optional': True}
-                    ]
-                ]
-            },
-            '_predominant_a_1': {
-                'parents': [],
-                'synopses': [
-                    [
-                        {'role': 'ARG0', 'value': 'e',
-                         'properties': [], 'optional': False},
-                        {'role': 'ARG1', 'value': 'e',
-                         'properties': [], 'optional': False}
-                    ],
-                    [
-                        {'role': 'ARG0', 'value': 'e',
-                         'properties': [], 'optional': False},
-                        {'role': 'ARG1', 'value': 'p',
-                         'properties': [], 'optional': False}
-                    ]
-                ]
-            }
-        }
+    d = s.to_dict()
+    assert set(d) == {'variables', 'roles', 'properties', 'predicates'}
+    assert d['variables'] == {
+        'u': {'parents': [], 'properties': []},
+        'i': {'parents': ['u'], 'properties': []},
+        'p': {'parents': ['u'], 'properties': []},
+        'e': {'parents': ['i'], 'properties': [['TENSE', 'tense']]},
+        'x': {'parents': ['i', 'p'], 'properties': [['IND', 'bool']]}
+    }
+    assert d['properties'] == {
+        'tense': {'parents': []},
+        'pres': {'parents': ['tense']},
+        'bool': {'parents': []},
+        '+': {'parents': ['bool']}
+    }
+    assert d['roles'] == {
+        'ARG0': {'value': 'i'},
+        'ARG1': {'value': 'u'},
+        'ARG2': {'value': 'u'},
+        'ARG3': {'value': 'u'}
+    }
+    assert set(d['predicates']) == {
+        'existential_q', '_the_q', '_predicate_n_1', '_predicate_v_of',
+        '_predominant_a_1'
+    }
+    assert d['predicates']['existential_q'] == {
+        'parents': [],
+        'synopses': []
+    }
+    assert d['predicates']['_the_q'] == {
+        'parents': ['existential_q'],
+        'synopses': []
+    }
+    assert d['predicates']['_predicate_n_1'] == {
+        'parents': [],
+        'synopses': [
+            [{'role': 'ARG0', 'value': 'x',
+              'properties': {'IND': '+'}, 'optional': False}]
+        ]
+    }
+    assert d['predicates']['_predicate_v_of'] == {
+        'parents': [],
+        'synopses': [
+            [
+                {'role': 'ARG0', 'value': 'e',
+                 'properties': {}, 'optional': False},
+                {'role': 'ARG1', 'value': 'i',
+                 'properties': {}, 'optional': False},
+                {'role': 'ARG2', 'value': 'p',
+                 'properties': {}, 'optional': False},
+                {'role': 'ARG3', 'value': 'i',
+                 'properties': {}, 'optional': True}
+            ]
+        ]
+    }
+    assert d['predicates']['_predominant_a_1'] == {
+        'parents': [],
+        'synopses': [
+            [
+                {'role': 'ARG0', 'value': 'e',
+                 'properties': {}, 'optional': False},
+                {'role': 'ARG1', 'value': 'e',
+                 'properties': {}, 'optional': False}
+            ],
+            [
+                {'role': 'ARG0', 'value': 'e',
+                 'properties': {}, 'optional': False},
+                {'role': 'ARG1', 'value': 'p',
+                 'properties': {}, 'optional': False}
+            ]
+        ]
     }
 
 
@@ -355,7 +359,7 @@ def test_from_dict(tmpdir):
             '_predicate_n_1': {
                 'parents': [],
                 'synopses': [
-                    [{'role': 'ARG0', 'value': 'x', 'properties': [('IND', '+')]}]
+                    [{'role': 'ARG0', 'value': 'x', 'properties': {'IND': '+'}}]
                 ]
             },
             '_predicate_v_of': {

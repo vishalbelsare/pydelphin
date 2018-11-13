@@ -198,7 +198,7 @@ class TypeHierarchy(object):
     """
     def __init__(self, top, hierarchy=None):
         self._top = top
-        self._hier = {top: ([], [])}
+        self._hier = {top: ([], set())}
         if hierarchy is not None:
             self.update(hierarchy)
 
@@ -226,9 +226,9 @@ class TypeHierarchy(object):
         if redundant:
             raise TypeHierarchyError('redundant parents: {}'
                              .format(', '.join(sorted(redundant))))
-        self._hier[typename] = (parents, [])
+        self._hier[typename] = (parents, set())
         for parent in parents:
-            self._hier[parent][1].append(typename)
+            self._hier[parent][1].add(typename)
 
     def __getitem__(self, typename):
         return list(self._hier[typename][0])
