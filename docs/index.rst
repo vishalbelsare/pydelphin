@@ -32,11 +32,14 @@ PyDelphin
 
   api/delphin.commands.rst
   api/delphin.derivation.rst
+  api/delphin.dmrs.rst
+  api/delphin.eds.rst
   api/delphin.extra.rst
   api/delphin.interfaces.rst
   api/delphin.itsdb.rst
   api/delphin.mrs.rst
   api/delphin.repp.rst
+  api/delphin.semi.rst
   api/delphin.tdl.rst
   api/delphin.tfs.rst
   api/delphin.tokens.rst
