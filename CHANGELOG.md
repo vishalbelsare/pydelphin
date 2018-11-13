@@ -8,10 +8,12 @@ these changes are prefixed with "**BREAKING**"
 ### Added
 
 * `delphin.vpm` and `tests/vpm_test.py`
+* `delphin.semi` and `tests/semi_test.py`
 
 ### Removed
 
 * **BREAKING** `delphin.mrs.vpm` and `tests/mrs_vpm_test.py`
+* **BREAKING** `delphin.mrs.semi` and `tests/mrs_semi_test.py`
 
 ## [v0.9.1][]
 
