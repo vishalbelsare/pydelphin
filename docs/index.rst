@@ -44,6 +44,7 @@ PyDelphin
   api/delphin.tfs.rst
   api/delphin.tokens.rst
   api/delphin.tsql.rst
+  api/delphin.vpm.rst
 
 
 Indices and tables

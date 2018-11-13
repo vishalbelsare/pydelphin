@@ -19,5 +19,4 @@ delphin.mrs
   delphin.mrs.semi.rst
   delphin.mrs.simpledmrs.rst
   delphin.mrs.simplemrs.rst
-  delphin.mrs.vpm.rst
   delphin.mrs.xmrs.rst

@@ -5,6 +5,14 @@ these changes are prefixed with "**BREAKING**"
 
 ## [Unreleased][unreleased]
 
+### Added
+
+* `delphin.vpm` and `tests/vpm_test.py`
+
+### Removed
+
+* **BREAKING** `delphin.mrs.vpm` and `tests/mrs_vpm_test.py`
+
 ## [v0.9.1][]
 
 ### Fixed

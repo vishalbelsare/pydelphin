@@ -14,7 +14,7 @@ variable properties (e.g. `PNG: 1pl` might map to `PERS: 1` and
 
 import re
 
-from delphin.mrs.components import sort_vid_split
+from delphin.mrs._mrs import var_split
 
 _LR_OPS = set(['<>', '>>', '==', '=>'])
 _RL_OPS = set(['<>', '<<', '==', '<='])
@@ -29,7 +29,7 @@ def load(source, semi=None):
     Args:
         source: a filename or file-like object containing the VPM
             definitions
-        semi (:class:`~delphin.mrs.semi.SemI`, optional): if provided,
+        semi (:class:`~delphin.semi.SemI`, optional): if provided,
             it is passed to the VPM constructor
     Returns:
         a :class:`VPM` instance
@@ -87,7 +87,7 @@ class VPM(object):
             featmap is a tuple of two lists: (source_features,
             target_features); and valmap is a list of value tuples:
             (source_values, OP, target_values)
-        semi (:class:`~delphin.mrs.semi.SemI`, optional): if provided,
+        semi (:class:`~delphin.semi.SemI`, optional): if provided,
             this is used for more sophisticated value comparisons
     """
 
@@ -111,7 +111,7 @@ class VPM(object):
         Returns:
             a tuple (v, p) of the mapped variable and properties
         """
-        vs, vid = sort_vid_split(var)
+        vs, vid = var_split(var)
         if reverse:
             # variable type mapping is disabled in reverse
             # tms = [(b, op, a) for a, op, b in self._typemap if op in _RL_OPS]
