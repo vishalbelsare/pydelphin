@@ -23,7 +23,7 @@ class ElementaryPredication(_Node):
     An MRS elementary predication (EP).
 
     EPs combine a predicate with various structural semantic
-    properties. They must have a `nodeid`, `pred`, and `label`.
+    properties. They must have a `predicate`, and `label`.
     Arguments and other properties are optional. Note nodeids are not a
     formal property of MRS (unlike DMRS, or the "anchors" of RMRS), but
     they are required for Pydelphin to uniquely identify EPs in an
@@ -32,18 +32,19 @@ class ElementaryPredication(_Node):
     and therefore it is a good idea to include them.
 
     Args:
-        nodeid: a nodeid
-        pred (:class:`Pred`): semantic predicate
+        predicate (:class:`Predicate`): semantic predicate
         label (str): scope handle
         args (dict, optional): mapping of roles to values
+        carg (str, optional): constant argument
         lnk (:class:`Lnk`, optional): surface alignment
         surface (str, optional): surface string
         base (str, optional): base form
     Attributes:
         nodeid: a nodeid
-        pred (:class:`Pred`): semantic predicate
+        predicate (:class:`Predicate`): semantic predicate
         label (str): scope handle
         args (dict): mapping of roles to values
+        carg (str): constant argument
         lnk (:class:`Lnk`): surface alignment
         surface (str): surface string
         base (str): base form
@@ -52,12 +53,11 @@ class ElementaryPredication(_Node):
     """
 
     __slots__ = ('label', 'args')
-    def __init__(self, predicate, label, args=None,
+    def __init__(self, predicate, label, args=None, carg=None,
                  lnk=None, surface=None, base=None):
         nodeid = None
         if args is None:
             args = {}
-        carg = args.get(CONSTARG_ROLE)
         type = var_sort(args.get(IVARG_ROLE, UNKNOWNSORT + '0'))
         properties = None
         super(ElementaryPredication, self).__init__(
@@ -318,12 +318,10 @@ def _build_structures(x, lblmap, ivmap, vgen):
                     ivmap[end] = vgen.new(unexpr.type,
                                           unexpr.properties)[0]
                 args[role] = ivmap[end]
-        if node.carg is not None:
-            args[CONSTARG_ROLE] = node.carg
         nodescope = x.scopemap[node.nodeid]
         label = lblmap[nodescope]
         rels.append(ElementaryPredication(
-            node.predicate, label, args=args,
+            node.predicate, label, args=args, carg=node.carg,
             lnk=node.lnk, surface=node.surface, base=node.base))
     return rels, hcons
 
