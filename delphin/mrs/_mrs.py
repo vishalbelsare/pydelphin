@@ -18,7 +18,7 @@ BODY_ROLE      = 'BODY'
 CONSTARG_ROLE  = 'CARG'
 
 
-class ElementaryPredication(_Node):
+class EP(_Node):
     """
     An MRS elementary predication (EP).
 
@@ -60,7 +60,7 @@ class ElementaryPredication(_Node):
             args = {}
         type = var_sort(args.get(IVARG_ROLE, UNKNOWNSORT + '0'))
         properties = None
-        super(ElementaryPredication, self).__init__(
+        super(EP, self).__init__(
             nodeid, predicate, type, properties, carg, lnk, surface, base)
         self.label = label
         self.args = args
@@ -84,7 +84,7 @@ class ElementaryPredication(_Node):
             return self.args[IVARG_ROLE]
         return None
 
-    #: A synonym for :attr:`ElementaryPredication.intrinsic_variable`
+    #: A synonym for :attr:`EP.intrinsic_variable`
     iv = intrinsic_variable
 
     def is_quantifier(self):
@@ -94,7 +94,7 @@ class ElementaryPredication(_Node):
         return RSTR_ROLE in self.args
 
 
-class HandleConstraint(object):
+class HCons(object):
     """
     A relation between two handles.
 
@@ -122,15 +122,15 @@ class HandleConstraint(object):
 
     @classmethod
     def qeq(cls, hi, lo):
-        return cls(hi, HandleConstraint.QEQ, lo)
+        return cls(hi, HCons.QEQ, lo)
 
     def __repr__(self):
-        return '<HandleConstraint object ({} {} {}) at {}>'.format(
+        return '<HCons object ({} {} {}) at {}>'.format(
                str(self.hi), self.relation, str(self.lo), id(self)
         )
 
 
-class IndividualConstraint(_IndividualConstraint):
+class ICons(_IndividualConstraint):
     """
     A relation between two variables.
 
@@ -320,7 +320,7 @@ def _build_structures(x, lblmap, ivmap, vgen):
                 args[role] = ivmap[end]
         nodescope = x.scopemap[node.nodeid]
         label = lblmap[nodescope]
-        rels.append(ElementaryPredication(
+        rels.append(EP(
             node.predicate, label, args=args, carg=node.carg,
             lnk=node.lnk, surface=node.surface, base=node.base))
     return rels, hcons

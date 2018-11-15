@@ -11,9 +11,9 @@ import re
 from delphin.sembase import Lnk, Predicate
 from delphin.mrs import (
     MRS,
-    ElementaryPredication,
-    HandleConstraint,
-    IndividualConstraint)
+    EP,
+    HCons,
+    ICons)
 from delphin.mrs._mrs import var_sort
 from delphin.util import safe_int, LookaheadIterator
 
@@ -186,10 +186,10 @@ def _decode_indexed(tokens, semi):
     assert tokens.next()[0] == 3
     top, index = _decode_hook(tokens, variables)
     rels = _decode_rels(tokens, variables, semi)
-    hcons = _decode_cons(tokens, HandleConstraint)
+    hcons = _decode_cons(tokens, HCons)
     gid = tokens.next()[0]
     if gid == 9:
-        icons = _decode_cons(tokens, IndividualConstraint)
+        icons = _decode_cons(tokens, ICons)
         gid = tokens.next()[0]
     assert gid == 4
     _match_properties(variables, semi)
@@ -255,7 +255,7 @@ def _decode_rel(label, tokens, variables, semi):
     argtypes = [var_sort(arg) for arg in arglist]
     synopsis = semi.find_synopsis(pred, variables=argtypes)
     args = {d[0]: v for d, v in zip(synopsis, arglist)}
-    return ElementaryPredication(
+    return EP(
         Predicate.surface_or_abstract(pred),
         label=label,
         args=args,

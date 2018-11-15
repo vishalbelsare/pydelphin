@@ -45,9 +45,9 @@ will use the same methods.
 # )
 
 from ._mrs import (
-    ElementaryPredication,
-    HandleConstraint,
-    IndividualConstraint,
+    EP,
+    HCons,
+    ICons,
     MRS,
     var_split,
     var_sort,

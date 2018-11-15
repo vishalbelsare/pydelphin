@@ -4,9 +4,8 @@ import pytest
 from delphin.sembase import (Lnk, Predicate)
 from delphin.mrs import (
     MRS,
-    ElementaryPredication as EP,
-    HandleConstraint as HC,
-    IndividualConstraint as IC,
+    EP,
+    HCons,
     indexedmrs)
 from delphin import semi
 
@@ -97,7 +96,6 @@ def test_decode(simple_semi):
     assert m.top == 'h1'
     assert m.index == 'e3'
     assert m.rels[0].label == 'h4'
-    print(m.rels[0].predicate)
     assert m.rels[0].args['RSTR'] == 'h5'
     assert m.rels[1].carg == 'Abrams'
     assert m.rels[2].predicate == '_bark_v_1'
@@ -120,7 +118,7 @@ def test_encode(simple_semi):
                   EP(p('_bark_v_1'), label='h2',
                      args={'ARG0': 'e3', 'ARG1': 'x6'},
                      lnk=Lnk.charspan(7, 14))],
-            hcons=[HC.qeq('h1', 'h2'), HC.qeq('h5', 'h8')],
+            hcons=[HCons.qeq('h1', 'h2'), HCons.qeq('h5', 'h8')],
             variables={'e3': {'SF': 'prop', 'TENSE': 'past',
                               'MOOD': 'indicative', 'PROG': '-', 'PERF': '-'},
                        'x6': {'PERS': '3', 'NUM': 'sg', 'IND': '+'}})

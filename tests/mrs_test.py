@@ -3,9 +3,8 @@ import pytest
 
 from delphin.sembase import Predicate, _XMRS, _Node, _Edge
 from delphin.mrs import (
-    ElementaryPredication as EP,
-    HandleConstraint as HCONS,
-    IndividualConstraint as ICONS,
+    EP,
+    HCons,
     MRS)
 
 p = Predicate.surface
@@ -20,8 +19,8 @@ def dogs_bark():
                   EP(p('udef_q_rel'), 'h3',
                      args={'ARG0': 'x4', 'RSTR': 'h5', 'BODY': 'h7'}),
                   EP(p('_dog_n_1_rel'), 'h6', args={'ARG0': 'x4'})],
-        'hcons': [HCONS.qeq('h0', 'h1'),
-                  HCONS.qeq('h5', 'h6')],
+        'hcons': [HCons.qeq('h0', 'h1'),
+                  HCons.qeq('h5', 'h6')],
         'variables': {
             'e2': [('TENSE', 'pres')],
             'x4': [('NUM', 'pl')]}}
