@@ -9,11 +9,35 @@ these changes are prefixed with "**BREAKING**"
 
 * `delphin.vpm` and `tests/vpm_test.py`
 * `delphin.semi` and `tests/semi_test.py`
+* `tests/mrs_simplemrs_test.py`
+* `delphin.mrs.simplemrs`: `encode()` and `decode()` functions
+* `delphin.mrs.indexedmrs` and `tests/mrs_indexedmrs_test.py`
+* `delphin.dmrs.dmrx` and `tests/dmrs_dmrx_test.py`
+* `delphin.dmrs.simpledmrs` and `tests/dmrs_simpledmrs_test.py`
+
+### Changed
+
+* `delphin.mrs.simplemrs` serialization has less customizability (but
+  simplicity is good)
 
 ### Removed
 
 * **BREAKING** `delphin.mrs.vpm` and `tests/mrs_vpm_test.py`
 * **BREAKING** `delphin.mrs.semi` and `tests/mrs_semi_test.py`
+* `tests/simplemrs_test.md`
+* **BREAKING** `delphin.mrs.simplemrs` functions, including:
+  - `load_one()`
+  - `loads_one()`
+  - `dump_one()`
+  - `dumps_one()`
+  - `tokenize()`
+  - `deserialize()`
+  - `serialize()`
+  - Also parameters on load/dump functions: `single`, `version`,
+    `pretty_print`, `color`, and `errors`
+* **BREAKING** `delphin.mrs.dmrx` and `tests/mrs_dmrx_test.py`
+* **BREAKING** `delphin.mrs.simpledmrs`
+
 
 ## [v0.9.1][]
 
