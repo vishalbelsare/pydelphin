@@ -40,7 +40,7 @@ these changes are prefixed with "**BREAKING**"
 * **BREAKING** `delphin.mrs.simpledmrs`
 * **BREAKING** `delphin.mrs.xmrs` and `tests/mrs_xmrs_test.py`
 * **BREAKING** `delphin.mrs.components` and `tests/mrs_components_test.py`
-
+* **BREAKING** `delphin.mrs.config`
 
 ## [v0.9.1][]
 
