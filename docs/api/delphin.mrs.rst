@@ -8,7 +8,6 @@ delphin.mrs
   :maxdepth: 1
 
   delphin.mrs.compare.rst
-  delphin.mrs.components.rst
   delphin.mrs.eds.rst
   delphin.mrs.indexedmrs.rst
   delphin.mrs.mrx.rst
@@ -16,4 +15,3 @@ delphin.mrs
   delphin.mrs.prolog.rst
   delphin.mrs.query.rst
   delphin.mrs.simplemrs.rst
-  delphin.mrs.xmrs.rst

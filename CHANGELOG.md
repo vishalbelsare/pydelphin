@@ -22,6 +22,7 @@ these changes are prefixed with "**BREAKING**"
 
 ### Removed
 
+* **BREAKING** `delphin.mrs.convert()`
 * **BREAKING** `delphin.mrs.vpm` and `tests/mrs_vpm_test.py`
 * **BREAKING** `delphin.mrs.semi` and `tests/mrs_semi_test.py`
 * `tests/simplemrs_test.md`
@@ -37,6 +38,8 @@ these changes are prefixed with "**BREAKING**"
     `pretty_print`, `color`, and `errors`
 * **BREAKING** `delphin.mrs.dmrx` and `tests/mrs_dmrx_test.py`
 * **BREAKING** `delphin.mrs.simpledmrs`
+* **BREAKING** `delphin.mrs.xmrs` and `tests/mrs_xmrs_test.py`
+* **BREAKING** `delphin.mrs.components` and `tests/mrs_components_test.py`
 
 
 ## [v0.9.1][]
