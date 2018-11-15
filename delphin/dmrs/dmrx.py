@@ -12,8 +12,6 @@ import xml.etree.ElementTree as etree
 
 from delphin.sembase import Lnk, Predicate
 from delphin.dmrs import DMRS, Node, Link
-from delphin.mrs.config import QUANTIFIER_POS
-from delphin.mrs.util import etree_tostring
 
 ##############################################################################
 ##############################################################################
@@ -121,7 +119,7 @@ def encode(d, properties=True, indent=False):
     elif indent is not False and indent is not None:
         _indent(elem, indent, maxdepth=3, level=0)
 
-    s = etree_tostring(elem, encoding='unicode').rstrip()
+    s = etree.tostring(elem, encoding='unicode').rstrip()
     return s
 
 
@@ -239,7 +237,7 @@ def _encode(ds, properties=True, encoding='unicode', indent=False):
     elif indent is not False and indent is not None:
         _indent(e, indent, maxdepth=4, level=0)
 
-    return etree_tostring(e, encoding=encoding).rstrip()
+    return etree.tostring(e, encoding=encoding).rstrip()
 
 
 def _encode_dmrs(d, properties):
@@ -299,7 +297,7 @@ def _encode_pred(pred):
 def _encode_sortinfo(node, properties):
     attributes = dict()
     # return empty <sortinfo/> for quantifiers
-    if node.predicate.pos == QUANTIFIER_POS:
+    if node.predicate.pos == 'q':
         return etree.Element('sortinfo')  # return empty <sortinfo/>
     if properties and node.sortinfo:
         for k, v in node.sortinfo.items():

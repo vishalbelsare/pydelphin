@@ -49,7 +49,7 @@ def load(source):
     return list(ms)
 
 
-def loads(s, encoding='utf-8'):
+def loads(s):
     """
     Deserialize SimpleMRS string representations
 

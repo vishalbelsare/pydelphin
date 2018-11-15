@@ -30,5 +30,6 @@ from ._mrs import (
     MRS,
     var_split,
     var_sort,
-    var_id)
+    var_id,
+    var_re)
 

@@ -42,7 +42,7 @@ def load(source):
     return list(ds)
 
 
-def loads(s, single=False, encoding='utf-8'):
+def loads(s, encoding='utf-8'):
     """
     Deserialize SimpleDMRS string representations
 
