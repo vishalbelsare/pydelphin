@@ -38,7 +38,7 @@ def property_priority(prop):
 
 # LNKS
 
-class Lnk(namedtuple('Lnk', ('type', 'data'))):
+class Lnk(object):
     """
     Surface-alignment information for predications.
 
@@ -47,13 +47,13 @@ class Lnk(namedtuple('Lnk', ('type', 'data'))):
     original string.
 
     Args:
-        type: the way the Lnk relates the semantics to the surface form
-        data: the Lnk specifiers, whose quality depends on *type*
+        arg: Lnk type or the string representation of a Lnk
+        data: alignment data (assumes *arg* is a Lnk type)
     Attributes:
         type: the way the Lnk relates the semantics to the surface form
-        data: the Lnk specifiers, whose quality depends on *type*
+        data: the alignment data (depends on the Lnk type)
     Note:
-        Valid *types* and their associated *data* shown in the table
+        Valid types and their associated *data* shown in the table
         below.
 
         =========  ===================  =========
@@ -67,17 +67,20 @@ class Lnk(namedtuple('Lnk', ('type', 'data'))):
 
 
     Example:
-        Lnk objects should be created using the classmethods:
 
-        >>> Lnk.charspan(0,5)
+        >>> Lnk('<0:5>').data
+        (0, 5)
+        >>> str(Lnk.charspan(0,5))
         '<0:5>'
-        >>> Lnk.chartspan(0,5)
+        >>> str(Lnk.chartspan(0,5))
         '<0#5>'
-        >>> Lnk.tokens([0,1,2])
+        >>> str(Lnk.tokens([0,1,2]))
         '<0 1 2>'
-        >>> Lnk.edge(1)
+        >>> str(Lnk.edge(1))
         '<@1>'
     """
+
+    __slots__ = ('type', 'data')
 
     # These types determine how a lnk on an EP or MRS are to be
     # interpreted, and thus determine the data type/structure of the
@@ -87,11 +90,28 @@ class Lnk(namedtuple('Lnk', ('type', 'data'))):
     TOKENS = 2  # Token numbers: a list of indices
     EDGE = 3  # An edge identifier: a number
 
-    def __init__(self, type, data):
-        # class methods below use __new__ to instantiate data, so
-        # don't do it here
-        if type not in (Lnk.CHARSPAN, Lnk.CHARTSPAN, Lnk.TOKENS, Lnk.EDGE):
-            raise XmrsError('Invalid Lnk type: {}'.format(type))
+    def __init__(self, arg, data=None):
+        if data is None and (arg[:1], arg[-1:]) == ('<', '>'):
+            arg = arg[1:-1]
+            if arg.startswith('@'):
+                self.type = Lnk.EDGE
+                self.data = int(arg[1:])
+            elif ':' in arg:
+                cfrom, cto = arg.split(':')
+                self.type = Lnk.CHARSPAN
+                self.data = (int(cfrom), int(cto))
+            elif '#' in arg:
+                vfrom, vto = arg.split('#')
+                self.type = Lnk.CHARTSPAN
+                self.data = (int(vfrom), int(vto))
+            else:
+                self.type = Lnk.TOKENS
+                self.data = tuple(map(int, arg.split()))
+        elif arg in (Lnk.CHARSPAN, Lnk.CHARTSPAN, Lnk.TOKENS, Lnk.EDGE):
+            self.type = arg
+            self.data = data
+        else:
+            raise TypeError('invalid Lnk: {}'.format(repr((arg, data))))
 
     @classmethod
     def charspan(cls, start, end):

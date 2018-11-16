@@ -172,17 +172,24 @@ class MRS(_SemanticComponent):
         self._icidx = {ic.left: ic for ic in icons}
 
     def to_xmrs(self):
+        top = self.top
+        if top in self._hcidx:
+            top = self._hcidx[top].lo
+        prenodes = []
         scopes = {}
         for i, ep in enumerate(self.rels, 10000):
-            ep.nodeid = str(i)
-            scopes.setdefault(ep.label, set()).add(ep.nodeid)
-        nodes, edges = _build_xmrs_structures(self, scopes, i + 1)
+            nodeid = str(i)
+            prenodes.append((nodeid, ep))
+            scopes.setdefault(ep.label, set()).add(nodeid)
+        nodes = _build_xmrs_nodes(self, prenodes)
+        edges, unexpr_nodes = _build_xmrs_edges(self, prenodes, scopes, i + 1)
+        nodes.extend(unexpr_nodes)
         icons = []
         for ic in self.icons:
             icons.append((nodemap.get(ic.left, ic.left),
                           ic.relation,
                           nodemap.get(ic.right, ic.right)))
-        return _XMRS(self.top,
+        return _XMRS(top,
                      self._epidx.get(self.index),
                      self._epidx.get(self.xarg),
                      nodes,
@@ -195,12 +202,14 @@ class MRS(_SemanticComponent):
 
     @classmethod
     def from_xmrs(cls, x):
-        vgen = _VarGenerator()
+        vgen = _VarGenerator(starting_vid=0)
+        top = vgen.new('h')[0]
         lblmap, ivmap = _build_varmaps(x, vgen)
         rels, hcons = _build_structures(x, lblmap, ivmap, vgen)
-        icons = [IndividualConstraint(ivmap[left], relation, ivmap[right])
+        hcons = [HCons.qeq(top, lblmap[x.top])] + hcons
+        icons = [ICons(ivmap[left], relation, ivmap[right])
                  for left, relation, right in x.icons]
-        return cls(top=lblmap.get(x.top),
+        return cls(top=top,
                    index=ivmap.get(x.index),
                    xarg=ivmap.get(x.xarg),
                    rels=rels,
@@ -243,36 +252,51 @@ def _fill_variables(vars, top, index, xarg, rels, hcons, icons):
     return vars
 
 
-def _build_xmrs_structures(m, scopes, next_nodeid):
+def _build_xmrs_nodes(m, prenodes):
     nodes = []
+    for nodeid, ep in prenodes:
+        nodes.append(_Node(nodeid,
+                           ep.predicate,
+                           ep.type,
+                           m.properties(ep.iv),
+                           carg=ep.carg,
+                           lnk=ep.lnk,
+                           surface=ep.surface,
+                           base=ep.base))
+    return nodes
+
+
+def _build_xmrs_edges(m, prenodes, scopes, next_nodeid):
     edges = []
+    unexpr_nodes = []
+    ivmap = {ep.iv: nodeid for nodeid, ep in prenodes}
     nodemap = m._epidx  # to avoid extra lookups later
-    for ep in m.rels:
-        nodes.append(ep)
+    for nodeid, ep in prenodes:
         for role, tgt in ep.args.items():
             if role == IVARG_ROLE:
-                edges.append(_Edge(ep.nodeid, tgt, role, _Edge.INTARG))
+                edges.append(_Edge(nodeid, tgt, role, _Edge.INTARG))
             elif role not in (BODY_ROLE, CONSTARG_ROLE):
                 if tgt in scopes:
                     mode = _Edge.LBLARG
                 elif tgt in m._hcidx:
-                    tgt = m._hcidx[tgt]
+                    tgt = m._hcidx[tgt].lo
                     mode = _Edge.QEQARG
                 elif tgt in nodemap:
-                    tgt = nodemap[tgt]
+                    tgt = ivmap[nodemap[tgt].iv]
                     mode = _Edge.VARARG
                 else:
                     if tgt not in nodemap:
-                        nodeid = str(next_nodeid)
+                        unexpr_nodeid = str(next_nodeid)
                         next_nodeid += 1
-                        nodemap[tgt] = nodeid
+                        nodemap[tgt] = unexpr_nodeid
                         type = var_sort(tgt)
-                        nodes.append(_Node.unexpressed(
-                            nodeid, type, dict(m.variables.get(tgt, []))))
+                        unexpr_nodes.append(_Node.unexpressed(
+                            unexpr_nodeid, type,
+                            dict(m.variables.get(tgt, []))))
                     tgt = nodemap[tgt]
                     mode = _Edge.UNEXPR
-                edges.append(_Edge(ep.nodeid, tgt, role, mode))
-    return nodes, edges
+                edges.append(_Edge(nodeid, tgt, role, mode))
+    return edges, unexpr_nodes
 
 
 def _build_varmaps(x, vgen):
@@ -311,7 +335,7 @@ def _build_structures(x, lblmap, ivmap, vgen):
             elif mode == _Edge.QEQARG:
                 hole = vgen.new(HANDLESORT)[0]
                 args[role] = hole
-                hcons.append(HandleConstraint.qeq(hole, lblmap[end]))
+                hcons.append(HCons.qeq(hole, lblmap[end]))
             elif mode == _Edge.UNEXPR:
                 if end not in ivmap:
                     unexpr = x.nodemap[end]

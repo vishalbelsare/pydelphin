@@ -55,7 +55,7 @@ def dump(ds, destination, properties=False, indent=True, encoding='utf-8'):
         encoding (str): if *destination* is a filename, write to the
             file with the given encoding; otherwise it is ignored
     """
-    text = dumps(xs, properties=properties, indent=indent)
+    text = dumps(ds, properties=properties, indent=indent)
     if hasattr(destination, 'write'):
         print(text, file=destination)
     else:
@@ -111,23 +111,32 @@ def to_triples(dmrs, short_pred=True, properties=True):
     """
     Encode *dmrs* as triples suitable for PENMAN serialization.
     """
+    idmap = {}
+    for i, node in enumerate(dmrs.nodes, 1):
+        if node.predicate.pos == 'q':
+            idmap[node.nodeid] = 'q' + str(i)
+        else:
+            idmap[node.nodeid] = '{}{}'.format(node.type or '_', i)
     getpred = Predicate.short_form if short_pred else Predicate.string
     ts = []
-    for node in dmrs.nodes:
-        ts.append((node.nodeid, 'instance', getpred(node.predicate)))
+    for node in sorted(dmrs.nodes, key=lambda n: dmrs.top != n.nodeid):
+        _id = idmap[node.nodeid]
+        ts.append((_id, 'instance', getpred(node.predicate)))
         if node.lnk is not None:
-            ts.append((node.nodeid, 'lnk', '"{}"'.format(str(node.lnk))))
+            ts.append((_id, 'lnk', '"{}"'.format(str(node.lnk))))
         if node.carg is not None:
-            ts.append((node.nodeid, 'carg', '"{}"'.format(node.carg)))
+            ts.append((_id, 'carg', '"{}"'.format(node.carg)))
         if properties:
             for key, value in node.sortinfo.items():
-                ts.append((node.nodeid, key.lower(), value))
+                ts.append((_id, key.lower(), value))
 
-    if dmrs.top is not None:
-        ts.append((None, 'top', dmrs.top))
+    # if dmrs.top is not None:
+    #     ts.append((None, 'top', dmrs.top))
     for link in dmrs.links:
+        start = idmap[link.start]
+        end = idmap[link.end]
         relation = '{}-{}'.format(link.role.upper(), link.post)
-        ts.append((link.start, relation, link.end))
+        ts.append((start, relation, end))
     return ts
 
 

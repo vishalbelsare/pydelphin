@@ -289,7 +289,8 @@ def _build_xmrs_edges(d, scopemap):
 def _build_nodes(x):
     nodes = []
     for n in x.nodes:
-        sortinfo = [(CVARSORT, n.type)] + list(n.properties.items())
+        sortinfo = dict(n.properties)
+        sortinfo[CVARSORT] = n.type
         nodes.append(Node(
             n.nodeid, n.predicate, sortinfo, n.carg,
             n.lnk, n.surface, n.base))
@@ -308,6 +309,8 @@ def _build_links(x):
         elif mode == _Edge.QEQARG:
             tgt = x.scope_representative(tgt)
             post = H_POST
+        elif mode == _Edge.INTARG:
+            continue
         # elif mode == _Edge.UNEXPR:
         #     ...
         else:

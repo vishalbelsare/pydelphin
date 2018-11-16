@@ -305,7 +305,7 @@ def _decode_cons(tokens, cls, variables):
 ##############################################################################
 # Encoding
 
-def _encode(ms, properties=True, encoding='unicode', indent=False):
+def _encode(ms, properties=True, indent=False):
     if indent is None or indent is False:
         indent = False  # normalize None to False
         delim = ' '
