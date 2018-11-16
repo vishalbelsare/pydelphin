@@ -12,8 +12,13 @@ these changes are prefixed with "**BREAKING**"
 * `tests/mrs_simplemrs_test.py`
 * `delphin.mrs.simplemrs`: `encode()` and `decode()` functions
 * `delphin.mrs.indexedmrs` and `tests/mrs_indexedmrs_test.py`
+* `delphin.dmrs` and `tests/dmrs_test.py`
 * `delphin.dmrs.dmrx` and `tests/dmrs_dmrx_test.py`
 * `delphin.dmrs.simpledmrs` and `tests/dmrs_simpledmrs_test.py`
+* `delphin.dmrs.dmrspenman`
+* `delphin.eds` and `tests/eds_test.py`
+* `delphin.eds.edsjson`
+* `delphin.eds.edspenman`
 
 ### Changed
 
@@ -42,7 +47,10 @@ these changes are prefixed with "**BREAKING**"
 * **BREAKING** `delphin.mrs.components` and `tests/mrs_components_test.py`
 * **BREAKING** `delphin.mrs.config`
 * **BREAKING** `delphin.mrs.path`
-
+* `delphin.codecs`
+* `delphin.mrs.util`
+* **BREAKING** `delphin.mrs.eds`
+* **BREAKING** `delphin.mrs.penman`
 
 ## [v0.9.1][]
 
