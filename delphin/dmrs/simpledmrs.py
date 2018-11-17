@@ -294,6 +294,10 @@ def _encode(ds, properties=True, encoding='unicode', indent=2):
 
 
 def _encode_dmrs(d, properties, indent):
+    # attempt to convert if necessary
+    if not isinstance(d, DMRS):
+        d = DMRS.from_xmrs(d)
+
     if indent is None:
         delim = ' '
         end = ' }'

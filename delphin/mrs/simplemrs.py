@@ -316,6 +316,10 @@ def _encode(ms, properties=True, indent=False):
 
 
 def _encode_mrs(m, properties, indent):
+    # attempt to convert if necessary
+    if not isinstance(m, MRS):
+        m = MRS.from_xmrs(m)
+
     delim = '\n  ' if indent else ' '
     if properties:
         varprops = {v: m.properties(v) for v in m.variables}

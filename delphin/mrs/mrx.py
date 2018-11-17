@@ -288,6 +288,10 @@ def _encode(ms, properties):
 
 
 def _encode_mrs(m, properties):
+    # attempt to convert if necessary
+    if not isinstance(m, MRS):
+        m = MRS.from_xmrs(m)
+
     if properties:
         varprops = {v: m.properties(v) for v in m.variables}
     else:

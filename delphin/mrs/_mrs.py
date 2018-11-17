@@ -14,6 +14,7 @@ from delphin.util import accdict
 UNKNOWNSORT    = 'u' # when nothing is known about the sort
 HANDLESORT     = 'h' # for scopal relations
 IVARG_ROLE     = 'ARG0'
+RSTR_ROLE      = 'RSTR'
 BODY_ROLE      = 'BODY'
 CONSTARG_ROLE  = 'CARG'
 
@@ -175,14 +176,9 @@ class MRS(_SemanticComponent):
         top = self.top
         if top in self._hcidx:
             top = self._hcidx[top].lo
-        prenodes = []
-        scopes = {}
-        for i, ep in enumerate(self.rels, 10000):
-            nodeid = str(i)
-            prenodes.append((nodeid, ep))
-            scopes.setdefault(ep.label, set()).add(nodeid)
-        nodes = _build_xmrs_nodes(self, prenodes)
-        edges, unexpr_nodes = _build_xmrs_edges(self, prenodes, scopes, i + 1)
+        nodes, scopes, ivmap, next_nodeid = _build_xmrs_nodes_and_scopes(self)
+        edges, unexpr_nodes = _build_xmrs_edges(
+            self, nodes, scopes, ivmap, next_nodeid)
         nodes.extend(unexpr_nodes)
         icons = []
         for ic in self.icons:
@@ -190,8 +186,8 @@ class MRS(_SemanticComponent):
                           ic.relation,
                           nodemap.get(ic.right, ic.right)))
         return _XMRS(top,
-                     self._epidx.get(self.index),
-                     self._epidx.get(self.xarg),
+                     ivmap.get(self.index),
+                     ivmap.get(self.xarg),
                      nodes,
                      scopes,
                      edges,
@@ -202,6 +198,10 @@ class MRS(_SemanticComponent):
 
     @classmethod
     def from_xmrs(cls, x):
+        # attempt to convert if necessary
+        if not isinstance(x, _XMRS):
+            x = x.to_xmrs()
+
         vgen = _VarGenerator(starting_vid=0)
         top = vgen.new('h')[0]
         lblmap, ivmap = _build_varmaps(x, vgen)
@@ -252,9 +252,15 @@ def _fill_variables(vars, top, index, xarg, rels, hcons, icons):
     return vars
 
 
-def _build_xmrs_nodes(m, prenodes):
+def _build_xmrs_nodes_and_scopes(m):
     nodes = []
-    for nodeid, ep in prenodes:
+    ivmap = {}
+    scopes = {}
+    for i, ep in enumerate(m.rels, 10000):
+        nodeid = str(i)
+        if not ep.is_quantifier():
+            ivmap[ep.iv] = nodeid
+        scopes.setdefault(ep.label, set()).add(nodeid)
         nodes.append(_Node(nodeid,
                            ep.predicate,
                            ep.type,
@@ -263,39 +269,37 @@ def _build_xmrs_nodes(m, prenodes):
                            lnk=ep.lnk,
                            surface=ep.surface,
                            base=ep.base))
-    return nodes
+    return nodes, scopes, ivmap, i + 1
 
 
-def _build_xmrs_edges(m, prenodes, scopes, next_nodeid):
+def _build_xmrs_edges(m, nodes, scopes, ivmap, next_nodeid):
     edges = []
     unexpr_nodes = []
-    ivmap = {ep.iv: nodeid for nodeid, ep in prenodes}
-    nodemap = m._epidx  # to avoid extra lookups later
-    for nodeid, ep in prenodes:
+    for node, ep in zip(nodes, m.rels):
         for role, tgt in ep.args.items():
-            if role == IVARG_ROLE:
-                edges.append(_Edge(nodeid, tgt, role, _Edge.INTARG))
+            if role == IVARG_ROLE and not ep.is_quantifier():
+                edges.append(_Edge(node.nodeid, tgt, role, _Edge.INTARG))
             elif role not in (BODY_ROLE, CONSTARG_ROLE):
                 if tgt in scopes:
                     mode = _Edge.LBLARG
                 elif tgt in m._hcidx:
                     tgt = m._hcidx[tgt].lo
                     mode = _Edge.QEQARG
-                elif tgt in nodemap:
-                    tgt = ivmap[nodemap[tgt].iv]
+                elif tgt in ivmap:
+                    tgt = ivmap[tgt]
                     mode = _Edge.VARARG
                 else:
-                    if tgt not in nodemap:
+                    if tgt not in ivmap:
                         unexpr_nodeid = str(next_nodeid)
                         next_nodeid += 1
-                        nodemap[tgt] = unexpr_nodeid
+                        ivmap[tgt] = unexpr_nodeid
                         type = var_sort(tgt)
                         unexpr_nodes.append(_Node.unexpressed(
                             unexpr_nodeid, type,
                             dict(m.variables.get(tgt, []))))
-                    tgt = nodemap[tgt]
+                    tgt = ivmap[tgt]
                     mode = _Edge.UNEXPR
-                edges.append(_Edge(nodeid, tgt, role, mode))
+                edges.append(_Edge(node.nodeid, tgt, role, mode))
     return edges, unexpr_nodes
 
 

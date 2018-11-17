@@ -119,6 +119,10 @@ def to_dict(dmrs, short_pred=True, properties=True):
     """
     Encode *dmrs* as a dictionary suitable for JSON serialization.
     """
+    # attempt to convert if necessary
+    if not isinstance(dmrs, DMRS):
+        dmrs = DMRS.from_xmrs(dmrs)
+
     getpred = Predicate.short_form if short_pred else Predicate.string
     nodes=[]
     for node in dmrs.nodes:

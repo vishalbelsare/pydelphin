@@ -234,13 +234,16 @@ class DMRS(_SemanticComponent):
                      nodes=self.nodes,
                      scopes=scopes,
                      edges=edges,
-                     icons=None,
+                     icons=[],
                      lnk=self.lnk,
                      surface=self.surface,
                      identifier=self.identifier)
 
     @classmethod
     def from_xmrs(cls, x):
+        # attempt to convert if necessary
+        if not isinstance(x, _XMRS):
+            x = x.to_xmrs()
         nodes = _build_nodes(x)
         links = _build_links(x)
         top = x.scope_representative(x.top)

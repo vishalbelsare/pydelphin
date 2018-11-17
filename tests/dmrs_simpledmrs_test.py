@@ -103,3 +103,32 @@ def test_decode(it_rains_heavily_dmrs):
     assert d.nodes[1].carg == 'Abrams'
     assert d.nodes[1].type == 'x'
     assert d.nodes[1].cto == 6
+
+
+def test_loads(it_rains_heavily_dmrs):
+    ds = simpledmrs.loads(
+        'dmrs {\n'
+        ' [<0:18>("It rained heavily.") top=20 index=10]\n'
+        ' 10 [_rain_v_1<3:9> e TENSE=past];\n'
+        ' 20 [_heavy_a_1<10:17> e];\n'
+        ' 20:ARG1/EQ -> 10;\n'
+        ' }\n'
+        'dmrs {\n'
+        ' [top=20 index=10]\n'
+        ' 10 [_rain_v_1 e TENSE=past];\n'
+        ' 20 [_heavy_a_1 e];\n'
+        ' 20:ARG1/EQ -> 10;\n'
+        ' }')
+
+    assert len(ds) == 2
+    assert ds[0].cto == 18
+    assert ds[0].surface == 'It rained heavily.'
+    assert ds[0].top == it_rains_heavily_dmrs.top
+    assert ds[0].index == it_rains_heavily_dmrs.index
+    assert ds[0].nodes == it_rains_heavily_dmrs.nodes
+    assert ds[0].links == it_rains_heavily_dmrs.links
+
+    assert ds[1].top == it_rains_heavily_dmrs.top
+    assert ds[1].index == it_rains_heavily_dmrs.index
+    assert ds[1].nodes == it_rains_heavily_dmrs.nodes
+    assert ds[1].links == it_rains_heavily_dmrs.links

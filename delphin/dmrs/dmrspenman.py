@@ -111,6 +111,10 @@ def to_triples(dmrs, short_pred=True, properties=True):
     """
     Encode *dmrs* as triples suitable for PENMAN serialization.
     """
+    # attempt to convert if necessary
+    if not isinstance(dmrs, DMRS):
+        dmrs = DMRS.from_xmrs(dmrs)
+
     idmap = {}
     for i, node in enumerate(dmrs.nodes, 1):
         if node.predicate.pos == 'q':

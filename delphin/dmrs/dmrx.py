@@ -241,6 +241,10 @@ def _encode(ds, properties=True, encoding='unicode', indent=False):
 
 
 def _encode_dmrs(d, properties):
+    # attempt to convert if necessary
+    if not isinstance(d, DMRS):
+        d = DMRS.from_xmrs(d)
+
     attributes = dict([('cfrom', str(d.cfrom)),
                        ('cto', str(d.cto))])
     if d.top is not None:
