@@ -40,7 +40,8 @@ def loads(s):
     return [from_dict(d) for d in data]
 
 
-def dump(es, destination, properties=True, indent=False, encoding='utf-8'):
+def dump(es, destination, properties=True, predicate_modifiers=False,
+         indent=False, encoding='utf-8'):
     """
     Serialize EDS objects to a EDS-JSON file.
 
@@ -49,6 +50,8 @@ def dump(es, destination, properties=True, indent=False, encoding='utf-8'):
         es: iterator of :class:`~delphin.eds.EDS` objects to
             serialize
         properties: if `True`, encode variable properties
+        predicate_modifiers (bool): apply EDS predicate modification
+            when *es* are not EDSs and must be converted
         indent: if `True`, adaptively indent; if `False` or `None`,
             don't indent; if a non-negative integer N, indent N spaces
             per level
@@ -59,7 +62,9 @@ def dump(es, destination, properties=True, indent=False, encoding='utf-8'):
         indent = None
     elif indent is True:
         indent = 2
-    data = [to_dict(e, properties=True) for e in es]
+    data = [to_dict(e, properties=properties,
+                    predicate_modifiers=predicate_modifiers)
+            for e in es]
     if hasattr(destination, 'write'):
         json.dump(data, destination, indent=indent)
     else:
@@ -67,7 +72,7 @@ def dump(es, destination, properties=True, indent=False, encoding='utf-8'):
             json.dump(data, fh)
 
 
-def dumps(es, properties=True, indent=False):
+def dumps(es, properties=True, predicate_modifiers=False, indent=False):
     """
     Serialize EDS objects to a EDS-JSON string.
 
@@ -75,6 +80,8 @@ def dumps(es, properties=True, indent=False):
         es: iterator of :class:`~delphin.eds.EDS` objects to
             serialize
         properties: if `True`, encode variable properties
+        predicate_modifiers (bool): apply EDS predicate modification
+            when *es* are not EDSs and must be converted
         indent: if `True`, adaptively indent; if `False` or `None`,
             don't indent; if a non-negative integer N, indent N spaces
             per level
@@ -85,7 +92,9 @@ def dumps(es, properties=True, indent=False):
         indent = None
     elif indent is True:
         indent = 2
-    data = [to_dict(e, properties=properties) for e in es]
+    data = [to_dict(e, properties=properties,
+                    predicate_modifiers=predicate_modifiers)
+            for e in es]
     return json.dumps(data, indent=indent)
 
 
@@ -96,13 +105,15 @@ def decode(s):
     return from_dict(json.loads(s))
 
 
-def encode(eds, properties=True, indent=False):
+def encode(eds, properties=True, predicate_modifiers=False, indent=False):
     """
     Serialize a EDS object to a EDS-JSON string.
 
     Args:
         e: a EDS object
         properties (bool): if `False`, suppress variable properties
+        predicate_modifiers (bool): apply EDS predicate modification
+            when *eds* is not an EDS and must be converted
         indent (bool, int): if `True` or an integer value, add
             newlines and indentation
     Returns:
@@ -112,13 +123,19 @@ def encode(eds, properties=True, indent=False):
         indent = None
     elif indent is True:
         indent = 2
-    return json.dumps(to_dict(eds, properties=properties), indent=indent)
+    d = to_dict(eds, properties=properties,
+                predicate_modifiers=predicate_modifiers)
+    return json.dumps(d, indent=indent)
 
 
-def to_dict(eds, properties=True):
+def to_dict(eds, properties=True, predicate_modifiers=False):
     """
     Encode the EDS as a dictionary suitable for JSON serialization.
     """
+    # attempt to convert if necessary
+    if not isinstance(eds, EDS):
+        eds = EDS.from_xmrs(eds, predicate_modifiers)
+
     nodes = {}
     for node in eds.nodes:
         nd = {

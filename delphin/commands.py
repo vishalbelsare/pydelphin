@@ -15,7 +15,6 @@ import json
 from functools import partial
 
 from delphin import itsdb, tsql
-from delphin.mrs import xmrs
 from delphin.util import safe_int, SExpr
 
 
@@ -24,7 +23,7 @@ from delphin.util import safe_int, SExpr
 
 def convert(path, source_fmt, target_fmt, select='result:mrs',
             properties=True, show_status=False, predicate_modifiers=False,
-            color=False, pretty_print=False, indent=None):
+            color=False, indent=None):
     """
     Convert between various DELPH-IN Semantics representations.
 
@@ -44,10 +43,8 @@ def convert(path, source_fmt, target_fmt, select='result:mrs',
             not an EDS format; default: `False`)
         color (bool): apply syntax highlighting if `True` and
             *target_fmt* is `"simplemrs"` (default: `False`)
-        pretty_print (bool): if `True`, format the output with
-            newlines and default indentation (default: `False`)
         indent (int, optional): specifies an explicit number of spaces
-            for indentation (implies *pretty_print*)
+            for indentation
     Returns:
         str: the converted representation
     """
@@ -55,16 +52,17 @@ def convert(path, source_fmt, target_fmt, select='result:mrs',
         raise ValueError(
             'Conversion from EDS to non-EDS currently not supported.')
 
-    if indent:
-        pretty_print = True
-        indent = 4 if indent is True else safe_int(indent)
+    if indent is not True and indent is not False and indent is not None:
+        indent = safe_int(indent)
 
     if len(tsql.inspect_query('select ' + select)['projection']) != 1:
         raise ValueError('Exactly 1 column must be given in selection query: '
                          '(e.g., result:mrs)')
 
-    # read
     loads = _get_codec(source_fmt)
+    dumps = _get_codec(target_fmt, load=False)
+
+    # read
     if path is None:
         xs = loads(sys.stdin.read())
     elif hasattr(path, 'read'):
@@ -79,19 +77,20 @@ def convert(path, source_fmt, target_fmt, select='result:mrs',
         xs = loads(open(path, 'r').read())
 
     # write
-    dumps = _get_codec(target_fmt, load=False)
     kwargs = {}
-    if color: kwargs['color'] = color
-    if pretty_print: kwargs['pretty_print'] = pretty_print
     if indent: kwargs['indent'] = indent
     if target_fmt == 'eds':
-        kwargs['pretty_print'] = pretty_print
         kwargs['show_status'] = show_status
     if target_fmt.startswith('eds'):
         kwargs['predicate_modifiers'] = predicate_modifiers
     kwargs['properties'] = properties
 
-    return dumps(xs, **kwargs)
+    output = dumps(xs, **kwargs)
+
+    if color and target_fmt == 'simplemrs':
+        output = _colorize(output)
+
+    return output
 
 
 def _get_codec(codec, load=True):
@@ -106,106 +105,51 @@ def _get_codec(codec, load=True):
         from delphin.mrs import mrx
         return mrx.loads if load else mrx.dumps
 
+    elif codec == 'mrs-json':
+        from delphin.mrs import mrsjson
+        return mrsjson.loads if load else mrsjson.dumps
+
     elif codec == 'mrs-prolog' and not load:
         from delphin.mrs import prolog
         return prolog.dumps
 
     elif codec == 'dmrx':
-        from delphin.mrs import dmrx
+        from delphin.dmrs import dmrx
         return dmrx.loads if load else dmrx.dumps
 
-    elif codec == 'simpledmrs' and not load:
-        from delphin.mrs import simpledmrs
-        return simpledmrs.dumps
+    elif codec == 'dmrs-json':
+        from delphin.dmrs import dmrsjson
+        return dmrsjson.loads if load else dmrsjson.dumps
+
+    elif codec == 'dmrs-penman':
+        from delphin.dmrs import dmrspenman
+        return dmrspenman.loads if load else dmrspenman.dumps
+
+    elif codec == 'simpledmrs':
+        from delphin.dmrs import simpledmrs
+        return simpledmrs.loads if load else simpledmrs.dumps
 
     elif codec == 'dmrs-tikz' and not load:
         from delphin.extra import latex
         return latex.dmrs_tikz_dependency
 
-    elif codec in ('mrs-json', 'dmrs-json', 'eds-json'):
-        cls = {'mrs-json': _MRS_JSON,
-               'dmrs-json': _DMRS_JSON,
-               'eds-json': _EDS_JSON}[codec]
-        return cls().loads if load else cls().dumps
-
-    elif codec in ('dmrs-penman', 'eds-penman'):
-        if codec == 'dmrs-penman':
-            model = xmrs.Dmrs
-        elif codec == 'eds-penman':
-            from delphin.mrs.eds import Eds as model
-        func = _penman_loads if load else _penman_dumps
-        return partial(func, model=model)
-
     elif codec == 'eds':
-        from delphin.mrs import eds
+        from delphin import eds
         return eds.loads if load else eds.dumps
+
+    elif codec == 'eds-json':
+        from delphin.eds import edsjson
+        return edsjson.loads if load else edsjson.dumps
+
+    elif codec == 'eds-penman':
+        from delphin.eds import edspenman
+        return edspenman.loads if load else edspenman.dumps
 
     elif load:
         raise ValueError('invalid source format: ' + codec)
     else:
         raise ValueError('invalid target format: ' + codec)
 
-
-# simulate json codecs for MRS and DMRS
-
-class _MRS_JSON(object):
-    CLS = xmrs.Mrs
-
-    def getlist(self, o):
-        if isinstance(o, dict):
-            return [o]
-        else:
-            return o
-
-    def load(self, f):
-        return [self.CLS.from_dict(d) for d in self.getlist(json.load(f))]
-
-    def loads(self, s):
-        return [self.CLS.from_dict(d) for d in self.getlist(json.loads(s))]
-
-    def dumps(self,
-              xs,
-              properties=True,
-              pretty_print=False,
-              indent=None,
-              **kwargs):
-        if pretty_print and indent is None:
-            indent = 2
-        return json.dumps(
-            [
-                self.CLS.to_dict(
-                    (x if isinstance(x, self.CLS)
-                       else self.CLS.from_xmrs(x, **kwargs)),
-                    properties=properties) for x in xs
-            ],
-            indent=indent)
-
-
-class _DMRS_JSON(_MRS_JSON):
-    CLS = xmrs.Dmrs
-
-
-class _EDS_JSON(_MRS_JSON):
-    from delphin.mrs import eds
-    CLS = eds.Eds
-
-
-# load Penman module on demand
-
-def _penman_loads(s, model=None, **kwargs):
-    from delphin.mrs import penman
-    return penman.loads(s, model=model, **kwargs)
-
-def _penman_dumps(xs, model=None, **kwargs):
-    from delphin.mrs import penman
-    strings = []
-    for x in xs:
-        try:
-            strings.append(penman.dumps([x], model=model, **kwargs))
-        except penman.penman.EncodeError:
-            logging.error('Invalid graph; possibly disconnected')
-            strings.append('')
-    return '\n'.join(strings)
 
 # read simplemrs from ACE output
 
@@ -242,6 +186,15 @@ def _read_ace_parse(s):
                 newline = True
         else:
             pass
+
+
+def _colorize(text):
+    from pygments import highlight as hl
+    from pygments.formatters import TerminalFormatter
+    from delphin.extra.highlight import SimpleMrsLexer, mrs_colorscheme
+    lexer = SimpleMrsLexer()
+    formatter = TerminalFormatter(bg='dark', colorscheme=mrs_colorscheme)
+    return hl(text, lexer, formatter)
 
 
 ###############################################################################

@@ -51,6 +51,7 @@ these changes are prefixed with "**BREAKING**"
 * `delphin.mrs.util`
 * **BREAKING** `delphin.mrs.eds`
 * **BREAKING** `delphin.mrs.penman`
+* **BREAKING** `--pretty-print` parameter for`delphin convert`
 
 ## [v0.9.1][]
 

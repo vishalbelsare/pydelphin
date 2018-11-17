@@ -129,6 +129,10 @@ class EDS(_SemanticComponent):
             predicate_modifiers (bool): if `True`, add
                 predicate-modifier dependencies
         """
+        # attempt to convert if necessary
+        if not isinstance(xmrs, _XMRS):
+            xmrs = xmrs.to_xmrs()
+
         top = xmrs.scope_representative(xmrs.top)
         nodes = _build_nodes(xmrs)
         edges = _build_edges(xmrs)
@@ -281,7 +285,7 @@ def loads(s):
 
 
 def dump(es, destination, properties=True, show_status=False,
-         indent=False, encoding='utf-8'):
+         predicate_modifiers=False, indent=False, encoding='utf-8'):
     """
     Serialize EDS objects to an EDS file.
 
@@ -291,13 +295,15 @@ def dump(es, destination, properties=True, show_status=False,
             serialize
         properties: if `True`, encode variable properties
         show_status (bool): if `True`, indicate disconnected components
+        predicate_modifiers (bool): apply EDS predicate modification
+            when *es* are not EDSs and must be converted
         indent: if `True`, adaptively indent; if `False` or `None`,
             don't indent; if a non-negative integer N, indent N spaces
             per level
         encoding (str): if *destination* is a filename, write to the
             file with the given encoding; otherwise it is ignored
     """
-    string = dumps(es, properties, show_status, indent)
+    string = dumps(es, properties, show_status, predicate_modifiers, indent)
     if hasattr(destination, 'write'):
         print(string, file=destination)
     else:
@@ -305,7 +311,8 @@ def dump(es, destination, properties=True, show_status=False,
             print(string, file=fh)
 
 
-def dumps(es, properties=True, show_status=False, indent=False):
+def dumps(es, properties=True, show_status=False, predicate_modifiers=False,
+          indent=False):
     """
     Serialize EDS objects to an EDS string.
 
@@ -314,6 +321,8 @@ def dumps(es, properties=True, show_status=False, indent=False):
             serialize
         properties: if `True`, encode variable properties
         show_status (bool): if `True`, indicate disconnected components
+        predicate_modifiers (bool): apply EDS predicate modification
+            when *es* are not EDSs and must be converted
         indent: if `True`, adaptively indent; if `False` or `None`,
             don't indent; if a non-negative integer N, indent N spaces
             per level
@@ -324,7 +333,9 @@ def dumps(es, properties=True, show_status=False, indent=False):
         delim = ' '
     else:
         delim = '\n'
-    return delim.join(encode(e, properties, show_status, indent) for e in es)
+    return delim.join(
+        encode(e, properties, show_status, predicate_modifiers, indent)
+        for e in es)
 
 
 def decode(s):
@@ -335,7 +346,8 @@ def decode(s):
     return _decode_eds(tokens)
 
 
-def encode(e, properties=True, show_status=False, indent=False):
+def encode(e, properties=True, show_status=False, predicate_modifiers=False,
+           indent=False):
     """
     Serialize an EDS object to an EDS string.
 
@@ -343,6 +355,8 @@ def encode(e, properties=True, show_status=False, indent=False):
         e: an EDS object
         properties (bool): if `False`, suppress variable properties
         show_status (bool): if `True`, indicate disconnected components
+        predicate_modifiers (bool): apply EDS predicate modification
+            when *e* is not an EDS and must be converted
         indent (bool, int): if `True` or an integer value, add
             newlines and indentation
     Returns:
@@ -352,7 +366,7 @@ def encode(e, properties=True, show_status=False, indent=False):
         indent = False
     else:
         indent = True
-    return _encode_eds(e, properties, show_status, indent)
+    return _encode_eds(e, properties, show_status, predicate_modifiers, indent)
 
 
 ##############################################################################
@@ -490,7 +504,11 @@ def _decode_edges(start, tokens):
 # Encoding
 
 
-def _encode_eds(e, properties, show_status, indent):
+def _encode_eds(e, properties, show_status, predicate_modifiers, indent):
+    # attempt to convert if necessary
+    if not isinstance(e, EDS):
+        e = EDS.from_xmrs(e, predicate_modifiers=predicate_modifiers)
+
     # do something predictable for empty EDS
     if len(e.nodes) == 0:
         return '{:\n}' if indent else '{:}'
