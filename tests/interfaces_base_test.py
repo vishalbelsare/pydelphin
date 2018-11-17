@@ -2,8 +2,9 @@
 import pytest
 
 from delphin.interfaces.base import ParseResponse, ParseResult
-from delphin.mrs import Mrs, simplemrs, Dmrs
-from delphin.mrs.eds import Eds
+from delphin.mrs import simplemrs
+from delphin.dmrs import dmrsjson
+from delphin.eds import edsjson
 from delphin.derivation import Derivation
 from delphin.exceptions import XmrsDeserializationError
 from delphin.tokens import YyTokenLattice
@@ -61,7 +62,7 @@ def test_ParseResult():
             {'from': 0, 'to': 10000, 'rargname': None, 'post': 'H'}
         ]
     }
-    dmrs = Dmrs.from_dict(dmrs_d)
+    dmrs = dmrsjson.from_dict(dmrs_d)
 
     r = ParseResult(dmrs=dmrs_d)
     assert len(r) == 1
@@ -85,7 +86,7 @@ def test_ParseResult():
         }
     }
     eds_s = '{e2: e2:_rain_v_1<3:9>[]}'
-    eds = Eds.from_dict(eds_d)
+    eds = edsjson.from_dict(eds_d)
 
     r = ParseResult(eds=eds_s)
     assert len(r) == 1

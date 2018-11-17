@@ -2,7 +2,7 @@
 import re
 from collections import namedtuple
 
-from delphin.mrs.components import Lnk
+from delphin.sembase import Lnk
 
 _yy_token = namedtuple(
     'YyToken',
