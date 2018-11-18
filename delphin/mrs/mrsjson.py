@@ -45,9 +45,9 @@ def dump(ms, destination, properties=True, indent=False, encoding='utf-8'):
     Serialize MRS objects to a MRS-JSON file.
 
     Args:
-        destination: filename or file object
         ms: iterator of :class:`~delphin.mrs.MRS` objects to
             serialize
+        destination: filename or file object
         properties: if `True`, encode variable properties
         indent: if `True`, adaptively indent; if `False` or `None`,
             don't indent; if a non-negative integer N, indent N spaces

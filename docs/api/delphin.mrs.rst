@@ -9,7 +9,8 @@ delphin.mrs
 
   delphin.mrs.compare.rst
   delphin.mrs.indexedmrs.rst
+  delphin.mrs.mrsjson.rst
+  delphin.mrs.mrsprolog.rst
   delphin.mrs.mrx.rst
-  delphin.mrs.prolog.rst
   delphin.mrs.query.rst
   delphin.mrs.simplemrs.rst

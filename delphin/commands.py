@@ -110,8 +110,8 @@ def _get_codec(codec, load=True):
         return mrsjson.loads if load else mrsjson.dumps
 
     elif codec == 'mrs-prolog' and not load:
-        from delphin.mrs import prolog
-        return prolog.dumps
+        from delphin.mrs import mrsprolog
+        return mrsprolog.dumps
 
     elif codec == 'dmrx':
         from delphin.dmrs import dmrx

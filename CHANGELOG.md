@@ -12,6 +12,7 @@ these changes are prefixed with "**BREAKING**"
 * `tests/mrs_simplemrs_test.py`
 * `delphin.mrs.simplemrs`: `encode()` and `decode()` functions
 * `delphin.mrs.indexedmrs` and `tests/mrs_indexedmrs_test.py`
+* `delphin.mrs.mrsjson`
 * `delphin.dmrs` and `tests/dmrs_test.py`
 * `delphin.dmrs.dmrx` and `tests/dmrs_dmrx_test.py`
 * `delphin.dmrs.simpledmrs` and `tests/dmrs_simpledmrs_test.py`
@@ -24,6 +25,8 @@ these changes are prefixed with "**BREAKING**"
 
 * `delphin.mrs.simplemrs` serialization has less customizability (but
   simplicity is good)
+* **BREAKING** `delphin.mrs.prolog` is updated and renamed to
+  `delphin.mrs.mrsprolog`
 
 ### Removed
 
